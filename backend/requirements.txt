@@ -1,0 +1,11 @@
+django
+fastapi
+uvicorn[standard]
+psycopg2-binary
+celery
+redis
+requests
+beautifulsoup4
+python-dotenv
+djangorestframework
+django-cors-headers
