@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-(8i_gb6rlopury&$3nzvo*3k!actmx)5l650#6b+lkj(d^smfn
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -46,7 +46,13 @@ INSTALLED_APPS = [
     'users',
     'donations',
     'api',
+    'payments',
+    'zakah',
 ]
+
+PAYSTACK_SECRET_KEY = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'  # Replace with env var
+PAYSTACK_PUBLIC_KEY = 'sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'  # Replace with env var
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -69,6 +75,16 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}
 
 
 ROOT_URLCONF = 'core.urls'
