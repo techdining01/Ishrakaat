@@ -17,6 +17,11 @@ class User(AbstractUser):
     # User asked for "Money box, where user can save excess fund"
     money_box_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     
+    # Paystack Dedicated Virtual Account details
+    paystack_customer_code = models.CharField(max_length=50, blank=True, null=True)
+    virtual_account_number = models.CharField(max_length=20, blank=True, null=True)
+    virtual_bank_name = models.CharField(max_length=100, blank=True, null=True)
+    
     def save(self, *args, **kwargs):
         if not self.registration_number:
             # f"{user.first_name}[:5]/uuid[:6]hex().upper()
