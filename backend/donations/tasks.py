@@ -1,15 +1,15 @@
 from celery import shared_task
 from django.utils import timezone
 from django.db import transaction
+from django.db.models import Sum
+from django.conf import settings
 from .models import UserDonationSettings, Transaction, DonationType
 from payments.models import SavedCard
-from payments.paystack import Paystack # We need to add charge_authorization to Paystack class
+from payments.paystack import Paystack
 from decimal import Decimal
 import logging
-
-logger = logging.getLogger(__name__)
-
 import uuid
+import requests
 
 @shared_task
 def process_monthly_donations():
@@ -92,3 +92,30 @@ def process_monthly_donations():
                 
         if not success:
             logger.warning(f"User {user.username}: Failed to process monthly donation of {amount}")
+
+
+@shared_task
+def send_daily_inflow_outflow_to_google_sheet():
+    now = timezone.now()
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    end = start + timezone.timedelta(days=1)
+    tx = Transaction.objects.filter(created_at__gte=start, created_at__lt=end)
+    inflow_total = tx.filter(
+        transaction_type__in=['DEPOSIT', 'DONATION']
+    ).aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
+    outflow_total = tx.filter(
+        transaction_type='WITHDRAWAL'
+    ).aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
+    webhook = getattr(settings, "GOOGLE_SHEETS_WEBHOOK_URL", None)
+    if not webhook:
+        return
+    payload = {
+        "app": getattr(settings, "APP_NAME", "Ishrakaat"),
+        "date": start.date().isoformat(),
+        "inflow": float(inflow_total),
+        "outflow": float(outflow_total),
+    }
+    try:
+        requests.post(webhook, json=payload, timeout=10)
+    except Exception as exc:
+        logger.error("Google sheet sync failed: %s", exc)

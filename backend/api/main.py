@@ -1,8 +1,18 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from asgiref.sync import sync_to_async
 from django.db.models import Sum
 
 app = FastAPI(title="Ishrakaat API", description="FastAPI for high performance requests")
+
+# Add CORS middleware to FastAPI
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For development; match Django's CORS_ALLOW_ALL_ORIGINS
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/health")
 def health_check():
@@ -14,9 +24,9 @@ async def get_stats():
     from donations.models import DonationType, Transaction
     from users.models import User
 
-    # Use sync_to_async for Django ORM calls
-    campaign_count = await sync_to_async(DonationType.objects.filter(is_active=True).count)()
-    user_count = await sync_to_async(User.objects.count)()
+    # Use sync_to_async for Django ORM calls - wrap in lambdas for safety
+    campaign_count = await sync_to_async(lambda: DonationType.objects.filter(is_active=True).count())()
+    user_count = await sync_to_async(lambda: User.objects.count())()
     
     # Aggregation
     total_donated = await sync_to_async(

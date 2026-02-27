@@ -1,0 +1,289 @@
+\\documentclass[11pt,a4paper]{article}
+\\usepackage[margin=2.5cm]{geometry}
+\\usepackage{hyperref}
+\\usepackage{enumitem}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+
+\\title{Ishrakaat Zakah, Money Box, Paystack, and LLM Receipt Flow}
+\\author{}
+\\date{}
+
+\\begin{document}
+
+\\maketitle
+
+\\section{High-Level Architecture}
+
+The application is a Django backend with a Next.js frontend. Users have a Money Box balance on their profile. Donations and Zakah flows are recorded as transactions and, when needed, processed through Paystack.
+
+Key concepts:
+
+\\begin{itemize}[noitemsep]
+  \\item Money Box: internal wallet balance on the user model.
+  \\item DonationType: campaigns such as ``Monthly Upkeep'', ``Family welfare support'' or Zakah-related campaigns.
+  \\item Transaction: every inflow or outflow of funds for a user, including deposits, donations, and withdrawals.
+  \\item Paystack: used for card payments and dedicated virtual accounts.
+  \\item SavedCard: tokenized card information stored after a successful Paystack transaction with a reusable card.
+\\end{itemize}
+
+\\section{Money Box and Transactions}
+
+\\subsection{Models}
+
+The \\texttt{Transaction} model in \\texttt{backend/donations/models.py} stores all money movements:
+
+\\begin{itemize}[noitemsep]
+  \\item \\texttt{user}: the owner of the transaction.
+  \\item \\texttt{amount}: the Naira amount.
+  \\item \\texttt{transaction\_type}: one of \\texttt{DEPOSIT}, \\texttt{DONATION}, or \\texttt{WITHDRAWAL}.
+  \\item \\texttt{donation\_type}: optional link to \\texttt{DonationType}.
+  \\item \\texttt{description}: human-readable explanation of the transaction.
+\\end{itemize}
+
+Whenever a deposit or donation is created through the main serializer in \\texttt{backend/donations/serializers.py}, the user's Money Box balance is updated atomically. For a deposit, the balance increases; for a donation or withdrawal, it decreases.
+
+\\subsection{Family Welfare Donations}
+
+For family welfare donations, a dedicated endpoint \\texttt{/donations/welfare/family/} is provided in \\texttt{backend/donations/views.py}. The logic:
+
+\\begin{enumerate}[noitemsep]
+  \\item Validate the purpose and amount.
+  \\item Ensure the user has enough Money Box balance.
+  \\item Create or reuse a default \\texttt{DonationType} named ``Family welfare support'' with category \\texttt{IMPROMPTU}.
+  \\item Create a \\texttt{Transaction} with type \\texttt{DONATION}, linked to this donation type.
+  \\item Create a \\texttt{WelfareFamilyNeedDonation} record pointing to the transaction.
+  \\item Deduct the amount from the user's Money Box balance within a database transaction.
+\\end{enumerate}
+
+This ensures reports can see a proper campaign or source for all family welfare donations.
+
+\\section{Paystack Integration}
+
+\\subsection{Core Paystack Wrapper}
+
+The Paystack wrapper is implemented in \\texttt{backend/payments/paystack.py}. It holds the secret key from Django settings and exposes methods such as:
+
+\\begin{itemize}[noitemsep]
+  \\item \\texttt{verify\_payment(ref)}: verifies a card or checkout payment.
+  \\item \\texttt{create\_customer(email, first\_name, last\_name, phone)}: creates a Paystack customer.
+  \\item \\texttt{create\_dedicated\_account(customer\_code)}: creates a virtual account (DVA) for the user.
+  \\item \\texttt{initialize\_payment(email, amount, reference, callback\_url)}: starts a card checkout and returns the authorization URL.
+  \\item \\texttt{charge\_authorization(email, amount, authorization\_code, reference)}: directly charges a saved card using its authorization code.
+\\end{itemize}
+
+All Paystack calls are made using HTTPS requests with the secret key in the Authorization header.
+
+\\subsection{Payment and SavedCard Models}
+
+The \\texttt{Payment} and \\texttt{SavedCard} models are in \\texttt{backend/payments/models.py}.
+
+\\begin{itemize}[noitemsep]
+  \\item \\texttt{Payment} tracks pending and completed payments with fields:
+  \\begin{itemize}[noitemsep]
+    \\item user, amount, reference, status, created\\_at, verified\\_at.
+    \\item \\texttt{purpose}: identifies what the payment is for, such as \\texttt{DEPOSIT}.
+  \\end{itemize}
+  \\item \\texttt{SavedCard} stores tokenized card details provided by Paystack:
+  \\begin{itemize}[noitemsep]
+    \\item authorization\\_code, card\\_type, last4, expiry month and year, email, and a Boolean \\texttt{is\_active}.
+  \\end{itemize}
+\\end{itemize}
+
+Cards are never stored with full PAN; only tokenized data and metadata are kept.
+
+\\subsection{Initializing a Card Payment}
+
+Card payments begin via \\texttt{InitializePaymentView} in \\texttt{backend/payments/views.py}. The steps:
+
+\\begin{enumerate}[noitemsep]
+  \\item Accept the amount, optional email, and purpose from the authenticated user.
+  \\item Convert the amount to Kobo for Paystack.
+  \\item Generate a unique reference.
+  \\item Create a \\texttt{Payment} row in the database with status \\texttt{PENDING}.
+  \\item Call \\texttt{Paystack.initialize\_payment} and return the authorization URL to the frontend.
+\\end{enumerate}
+
+The frontend redirects the user to the Paystack checkout page, where they enter card details securely.
+
+\\subsection{Verifying Card Payments and Saving Cards}
+
+After the user completes the payment at Paystack:
+
+\\begin{itemize}[noitemsep]
+  \\item The frontend calls \\texttt{/payments/verify/<reference>/} handled by \\texttt{VerifyPaymentView}.
+  \\item The view calls \\texttt{Paystack.verify\_payment} with the reference.
+  \\item On success:
+  \\begin{itemize}[noitemsep]
+    \\item The \\texttt{Payment} is updated to \\texttt{SUCCESS}.
+    \\item If \\texttt{payment.purpose == 'DEPOSIT'}, the Money Box balance is credited and a \\texttt{DEPOSIT} transaction is created.
+    \\item If the Paystack result contains a reusable authorization, a \\texttt{SavedCard} is created or reused for the user.
+  \\end{itemize}
+\\end{itemize}
+
+Saved cards are thus added automatically the first time a user completes a Paystack card payment that supports reuse.
+
+\\subsection{Dedicated Virtual Account per User}
+
+The application uses Paystack dedicated accounts to provide each user with a private account number.
+
+The flow in \\texttt{CreateVirtualAccountView}:
+
+\\begin{enumerate}[noitemsep]
+  \\item Check if the user already has a virtual account number; if so, return it.
+  \\item If the user has no \\texttt{paystack\_customer\_code}, call \\texttt{Paystack.create\_customer} to register them.
+  \\item Call \\texttt{Paystack.create\_dedicated\_account} with the customer code.
+  \\item Save the returned account number and bank name on the user model.
+  \\item Return them to the frontend, which displays the details in the dashboard.
+\\end{enumerate}
+
+Incoming transfers to that account are processed through a Paystack webhook endpoint \\texttt{/payments/webhook/}. The webhook:
+
+\\begin{itemize}[noitemsep]
+  \\item Verifies the signature using HMAC and the secret key.
+  \\item Parses \\texttt{charge.success} events, finds the user by email, and updates or creates a \\texttt{Payment}.
+  \\item Credits the user's Money Box balance and records a \\texttt{DEPOSIT} transaction.
+  \\item Saves a reusable card as \\texttt{SavedCard} when authorization data is present.
+\\end{itemize}
+
+\\section{Zakah Calculators and Payment Buttons}
+
+\\subsection{Zakah Calculation}
+
+The Zakah calculator is implemented in \\texttt{frontend/src/app/zakah/page.tsx}. It:
+
+\\begin{itemize}[noitemsep]
+  \\item Fetches Nisab information from \\texttt{/zakah/nisab/}.
+  \\item Calculates Zakah due on:
+  \\begin{itemize}[noitemsep]
+    \\item Wealth (2.5\\% if above Nisab).
+    \\item Livestock according to fiqh thresholds.
+    \\item Crops based on 5\\% or 10\\% rates.
+    \\item Other zakatable items at 2.5\\%.
+  \\end{itemize}
+\\end{itemize}
+
+For each category that yields a positive amount, it displays the Zakah due in Naira.
+
+\\subsection{Zakah Quick Payment Endpoint}
+
+To connect calculations to actual payments, a new backend endpoint \\texttt{/donations/zakah/pay/} was added in the donations app.
+
+The view \\texttt{zakah\_quick\_pay} in \\texttt{backend/donations/views.py}:
+
+\\begin{enumerate}[noitemsep]
+  \\item Requires an authenticated user.
+  \\item Reads \\texttt{amount}, \\texttt{method}, and \\texttt{note} from the request body.
+  \\item Validates that \\texttt{amount} is a positive decimal.
+  \\item Branches based on \\texttt{method}:
+  \\begin{itemize}[noitemsep]
+    \\item For \\texttt{MONEY\\_BOX}:
+    \\begin{itemize}[noitemsep]
+      \\item Ensure the user has enough Money Box balance.
+      \\item Within a database transaction, create a \\texttt{DONATION} transaction and subtract the amount from the Money Box.
+      \\item Return a success message such as ``Zakah paid from Money Box.''.
+    \\end{itemize}
+    \\item For \\texttt{CARD}:
+    \\begin{itemize}[noitemsep]
+      \\item Find the most recent active \\texttt{SavedCard} for the user.
+      \\item Use \\texttt{Paystack.charge\_authorization} to charge the card for the amount in Kobo with a Zakah-specific reference.
+      \\item On success, within a transaction, create a \\texttt{DONATION} transaction with a description containing the last four digits of the card.
+      \\item Return a success message such as ``Zakah paid using saved card.''.
+    \\end{itemize}
+  \\end{itemize}
+  \\item If \\texttt{method} is invalid or the card charge fails, respond with an appropriate error message.
+\\end{enumerate}
+
+This endpoint does not create a dedicated account or deposit to Money Box; it directly registers the donation, either by internal wallet or card.
+
+\\subsection{Frontend Zakah Pay Buttons}
+
+On the frontend, the Zakah page imports \\texttt{apiPost} and defines a helper:
+
+\\begin{itemize}[noitemsep]
+  \\item Compute the relevant Zakah amount, for example the maximum of gold-based and silver-based calculations for wealth.
+  \\item When the user clicks ``Pay from Money Box'' or ``Pay with saved card'', show a confirmation dialog summarizing the amount and purpose.
+  \\item If the user confirms, call \\texttt{apiPost} to \\texttt{/donations/zakah/pay/} with the chosen method and note.
+  \\item Display success or error messages at the top of the Zakah page.
+\\end{itemize}
+
+The pay buttons are added after Zakah amounts are displayed for:
+
+\\begin{itemize}[noitemsep]
+  \\item Wealth-based Zakah.
+  \\item Crops.
+  \\item Other zakatable items.
+\\end{itemize}
+
+Each section sends a different \\texttt{note} such as ``Zakah on wealth'', ``Zakah on crops'', and ``Zakah on other items'', so that transaction descriptions are meaningful.
+
+\\section{Monthly Donation Automation}
+
+Monthly or recurring donations are handled in \\texttt{backend/donations/tasks.py}. The task:
+
+\\begin{enumerate}[noitemsep]
+  \\item Runs on a schedule (for example daily at night).
+  \\item Reads each \\texttt{UserDonationSettings} with a positive \\texttt{monthly\_amount}.
+  \\item Checks whether a \\texttt{DONATION} transaction of at least that amount already exists for the current month.
+  \\item If not, attempts payment in two stages:
+  \\begin{itemize}[noitemsep]
+    \\item First, try auto-deducting from the user's Money Box, creating a \\texttt{DONATION} transaction with a description such as ``Monthly Donation (Auto-deducted from Money Box)''.
+    \\item If that fails and auto card charging is enabled for the user, retrieve the latest \\texttt{SavedCard} and call \\texttt{Paystack.charge\_authorization}. On success, create a \\texttt{DONATION} transaction with a description indicating the card last four digits.
+  \\end{itemize}
+\\end{enumerate}
+
+This is consistent with the manual Zakah payment pattern, where either Money Box or a saved card can be used as the funding source.
+
+\\section{LLM-Based Receipt Summarization and Validation}
+
+Future work involves allowing users to upload bank receipts or tellers when they pay directly to the organization's conventional bank account. The core idea:
+
+\\begin{itemize}[noitemsep]
+  \\item A model such as \\texttt{ReceiptUpload} holds:
+  \\begin{itemize}[noitemsep]
+    \\item The user, the uploaded file, the claimed amount, the claimed purpose (campaign or Zakah type), and the claimed date.
+  \\end{itemize}
+  \\item When a receipt is uploaded, an asynchronous task sends the OCR text and metadata to an LLM.
+  \\item The LLM is prompted to:
+  \\begin{itemize}[noitemsep]
+    \\item Summarize the receipt: sender, recipient, amount, date, reference.
+    \\item Compare with the claimed amount, date, and recipient.
+    \\item Return a short verdict: matches, mismatch, or unclear.
+  \\end{itemize}
+  \\item Based on the verdict:
+  \\begin{itemize}[noitemsep]
+    \\item Mark the receipt as validated, flagged, or pending manual review.
+    \\item Optionally auto-create a \\texttt{Transaction} if validation is strong enough.
+  \\end{itemize}
+\\end{itemize}
+
+An example LLM prompt outline:
+
+\\begin{enumerate}[noitemsep]
+  \\item Provide the raw OCR text.
+  \\item Provide the expected amount, date, and organization name.
+  \\item Ask the model to extract key fields and compare them.
+  \\item Ask for a JSON response with fields such as \\texttt{summary}, \\texttt{matches}, and \\texttt{comments}.
+\\end{enumerate}
+
+The application should keep the LLM logic separated from business logic, so that different providers or models can be plugged in without changing core donation and Zakah code.
+
+\\section{Configuration Checklist}
+
+To make all of this work in a real deployment, the following configuration steps are required:
+
+\\begin{itemize}[noitemsep]
+  \\item Set \\texttt{PAYSTACK\_SECRET\_KEY} and any callback URLs in Django settings.
+  \\item Configure Paystack:
+  \\begin{itemize}[noitemsep]
+    \\item Add allowed redirect URLs for the frontend, such as the dashboard.
+    \\item Configure the webhook endpoint URL to point to \\texttt{/payments/webhook/}.
+    \\item Enable Dedicated Accounts on the Paystack dashboard.
+  \\end{itemize}
+  \\item Ensure the user model has fields for Money Box balance, Paystack customer code, virtual account number, and virtual bank name.
+  \\item Schedule the monthly donation task via Celery beat or another scheduler.
+  \\item Set up an LLM provider and an OCR pipeline for future receipt summarization and validation.
+\\end{itemize}
+
+\\end{document}
+

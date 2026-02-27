@@ -1,0 +1,22 @@
+Donation App(Ishrakaat)
+
+i wish this app could be built from FastAPI, Django and Next.js Framework
+
+Features:
+1. Accounts for authentication which must be approved by admin
+2. Money box, where user can save excess fund so that when donation is due this app can deduct from it and an active ATM Card link to user account so that this app can deduct from it.
+3. From Accounts app every user must belong to Country, State, local Govt,      	ward in Nigeria. then create user Registration number like f"{user.first_name}[:5]/uuid[:6]hex().upper().
+4. Amounts user want to donate on monthly basis for donation, and provision 
+	for admin to add other donation he wants user to contribute on, it 
+	may be on impromptu, think of it as termly exams in academics teacher set exams on every quarter, student access exams and graded and that will pass, so it revolves like that. if there is an emergency for donation, admin can add it so that every user can access it and pay
+5. mobile first, with nice and appealing professioally looking and PWA
+6. Scrolling text area for quick notice and weekly newsletter, and notification reminder from three days prior due payment
+7. i think we can use FastAPI for requests, Django for auth and storing important and valuable asset and Nextjs for frontend
+8. logging
+9. Postgres db, and celery, redis and other tool good for background tasks
+10. report and chart for money inflow everyday, downloadable report with app name (app name could be in placeholder) and automated record on google sheet for audits, 
+11. when on mobile make icon look so better like native app
+12. You need to scrape website for best Islamic site for Zakah amount for gold and silver, crops, animals and other entity zakah is due, Dowry, Muderer fine, Some Holidays in Islam
+13. I want these in every user dashboard 1. Ishrakaat with icon(of donation), Zakah & Sadaqah, Waqf, Tabararaat, Aqsah, Welfare not as menu but clickable link to corresponding app
+14. use you instinct for menu and editable parts
+15. ask if am in any question, no hallucination, no silence change from this prompt
