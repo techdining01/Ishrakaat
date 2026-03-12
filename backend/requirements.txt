@@ -23,6 +23,7 @@ cryptography==46.0.5
 daphne==4.2.1
 Django==6.0.2
 django-cors-headers==4.9.0
+django-restframework==0.0.1
 djangorestframework==3.16.1
 djangorestframework_simplejwt==5.5.1
 fastapi==0.129.0

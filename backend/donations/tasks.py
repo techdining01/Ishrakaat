@@ -10,6 +10,37 @@ from decimal import Decimal
 import logging
 import uuid
 import requests
+import math
+import calendar
+import json
+
+logger = logging.getLogger(__name__)
+
+def _days_left_in_month(dt):
+    last_day = calendar.monthrange(dt.year, dt.month)[1]
+    end = dt.replace(day=last_day, hour=23, minute=59, second=59, microsecond=999999)
+    delta = end - dt
+    return max(0, math.ceil(delta.total_seconds() / 86400))
+
+def _compose_due_message(user, days_left, amount):
+    name = user.first_name or user.username or "Friend"
+    if days_left == 0:
+        return f"{name}, your monthly donation is due today. Kindly donate."
+    if days_left == 1:
+        return f"{name}, your monthly donation is due in 1 day. Kindly donate."
+    return f"{name}, your monthly donation is due in {days_left} days. Kindly donate."
+
+def _send_telegram(text):
+    token = getattr(settings, "TELEGRAM_BOT_TOKEN", None)
+    chat_id = getattr(settings, "TELEGRAM_REMINDER_CHAT_ID", None)
+    if not token or not chat_id:
+        return False
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    try:
+        requests.post(url, json={"chat_id": chat_id, "text": text}, timeout=10)
+        return True
+    except Exception:
+        return False
 
 @shared_task
 def process_monthly_donations():
@@ -93,6 +124,68 @@ def process_monthly_donations():
         if not success:
             logger.warning(f"User {user.username}: Failed to process monthly donation of {amount}")
 
+@shared_task
+def send_due_reminders():
+    now = timezone.now()
+    current_month = now.month
+    current_year = now.year
+    days_left = _days_left_in_month(now)
+    if days_left > 7:
+        return
+    settings_list = UserDonationSettings.objects.filter(monthly_amount__gt=0).select_related('user')
+    for settings in settings_list:
+        user = settings.user
+        amount = settings.monthly_amount
+        has_donated = Transaction.objects.filter(
+            user=user,
+            transaction_type='DONATION',
+            created_at__month=current_month,
+            created_at__year=current_year,
+            amount__gte=amount
+        ).exists()
+        if has_donated:
+            continue
+        # Compose with amount, link and verse
+        base = _compose_due_message(user, days_left, amount)
+        amount_str = f" Amount: ₦{float(amount):,.2f}."
+        link = getattr(settings_module := settings, "APP_URL", None) or getattr(settings, "APP_URL", None) or "http://localhost:3000/dashboard"
+        verse_ar = "مَّثَلُ ٱلَّذِينَ يُنفِقُونَ أَمْوَٰلَهُمْ فِى سَبِيلِ ٱللَّهِ كَمَثَلِ حَبَّةٍ أَنبَتَتْ سَبْعَ سَنَابِلَ"
+        verse_en = "The example of those who spend their wealth in the way of Allah is like a seed that grows seven ears (Qur’an 2:261)."
+        text = f"{base}{amount_str} Donate: {link}\n\n{verse_ar}\n{verse_en}"
+        _send_telegram(text)
+        # Try web push if library available
+        try:
+            from pywebpush import webpush, WebPushException  # type: ignore
+            vapid_private = getattr(settings, "VAPID_PRIVATE_KEY", None)
+            vapid_email = getattr(settings, "VAPID_CLAIMS", None) or "mailto:admin@example.com"
+            if not vapid_private:
+                continue
+            from .models import PushSubscription
+            subs = PushSubscription.objects.filter(user=user) | PushSubscription.objects.filter(user__isnull=True)
+            payload = json.dumps({
+                "title": "Monthly donation due",
+                "body": f"{base}{amount_str}\n\n{verse_ar}\n{verse_en}",
+                "icon": "/favicon.ico",
+                "data": {"url": "/dashboard", "tag": "monthly-due"},
+            })
+            for sub in subs:
+                try:
+                    webpush(
+                        subscription_info={
+                            "endpoint": sub.endpoint,
+                            "keys": {"p256dh": sub.p256dh, "auth": sub.auth},
+                        },
+                        data=payload,
+                        vapid_private_key=vapid_private,
+                        vapid_claims={"sub": vapid_email},
+                    )
+                except Exception:
+                    # On failure, ignore; optionally remove gone subscriptions here.
+                    pass
+        except Exception:
+            # pywebpush not available or misconfigured
+            continue
+
 
 @shared_task
 def send_daily_inflow_outflow_to_google_sheet():
@@ -110,7 +203,7 @@ def send_daily_inflow_outflow_to_google_sheet():
     if not webhook:
         return
     payload = {
-        "app": getattr(settings, "APP_NAME", "Ishrakaat"),
+        "app": getattr(settings, "APP_NAME", "Ishrapay"),
         "date": start.date().isoformat(),
         "inflow": float(inflow_total),
         "outflow": float(outflow_total),

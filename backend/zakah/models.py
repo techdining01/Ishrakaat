@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 
 class ZakahNisab(models.Model):
@@ -38,3 +39,18 @@ class DashboardIslamicCard(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class NisabData(models.Model):
+    """Stores scraped nisab data from external sources"""
+    currency = models.CharField(max_length=3, default='NGN')
+    gold_price_per_gram = models.DecimalField(max_digits=10, decimal_places=2)
+    silver_price_per_gram = models.DecimalField(max_digits=10, decimal_places=2)
+    source = models.CharField(max_length=255, default='Unknown')
+    last_updated = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['-last_updated']
+
+    def __str__(self):
+        return f"Nisab Data ({self.currency}) - {self.last_updated.strftime('%Y-%m-%d')}"

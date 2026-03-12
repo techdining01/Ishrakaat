@@ -6,6 +6,7 @@ from .models import (
     Transaction,
     WelfareFamilyNeedDonation,
     WaqfInterest,
+    PushSubscription,
 )
 
 
@@ -97,3 +98,10 @@ class WaqfInterestSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({"guest_phone": "Required for guest submissions."})
         
         return data
+
+
+class PushSubscriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PushSubscription
+        fields = ["id", "endpoint", "p256dh", "auth", "created_at"]
+        read_only_fields = ["id", "created_at"]

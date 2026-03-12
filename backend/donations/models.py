@@ -127,3 +127,25 @@ class WaqfInterest(models.Model):
     def __str__(self):
         name = self.user.username if self.user else self.guest_name or "Guest"
         return f"Waqf Interest: {name} - {self.waqf_category}"
+
+
+class PushSubscription(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="push_subscriptions",
+        null=True,
+        blank=True,
+    )
+    endpoint = models.URLField(unique=True)
+    p256dh = models.CharField(max_length=255)
+    auth = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        owner = self.user.username if self.user else "guest"
+        return f"PushSubscription({owner})"

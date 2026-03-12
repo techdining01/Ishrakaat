@@ -55,6 +55,7 @@ PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY')
 
 
 MIDDLEWARE = [
+    'core.middleware.JWTRefreshMiddleware',  
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -87,6 +88,10 @@ CELERY_BEAT_SCHEDULE = {
     'fetch_additional_zakah_references': {
         'task': 'zakah.tasks.fetch_additional_references_task',
         'schedule': crontab(hour=2, minute=0),
+    },
+    'scrape_daily_nisab': {
+        'task': 'zakah.tasks.scrape_daily_nisab_task',
+        'schedule': crontab(hour=6, minute=0),  # 6 AM daily
     },
 }
 
@@ -132,6 +137,17 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+}
+
+# JWT Settings
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),  # Extended from default 5 minutes
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
 }
 
 ROOT_URLCONF = 'core.urls'
@@ -216,3 +232,5 @@ STATIC_URL = 'static/'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+APP_URL = ''

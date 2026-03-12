@@ -37,5 +37,5 @@ async def get_stats():
         "active_campaigns": campaign_count,
         "total_users": user_count,
         "total_donated": float(total_donated),
-        "message": "Served via FastAPI (Lightning Fast)"
+        "message": "Done"
     }

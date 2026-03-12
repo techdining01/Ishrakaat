@@ -2,11 +2,14 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     DonationTypeListView,
+    DonationTypeDetailView,
     UserDonationSettingsView,
     TransactionViewSet,
     welfare_family_donation,
     zakah_quick_pay,
     WaqfInterestCreateView,
+    push_subscribe,
+    push_unsubscribe,
 )
 from .api import inflow_outflow_stats, inflow_outflow_csv
 
@@ -15,6 +18,7 @@ router.register(r"transactions", TransactionViewSet, basename="transaction")
 
 urlpatterns = [
     path("campaigns/", DonationTypeListView.as_view(), name="campaign-list"),
+    path("campaigns/<int:pk>/", DonationTypeDetailView.as_view(), name="campaign-detail"),
     path("settings/", UserDonationSettingsView.as_view(), name="donation-settings"),
     path("waqf/interest/", WaqfInterestCreateView.as_view(), name="waqf-interest"),
     path(
@@ -37,5 +41,7 @@ urlpatterns = [
         zakah_quick_pay,
         name="zakah-quick-pay",
     ),
+    path("push/subscribe/", push_subscribe, name="push-subscribe"),
+    path("push/unsubscribe/", push_unsubscribe, name="push-unsubscribe"),
     path("", include(router.urls)),
 ]

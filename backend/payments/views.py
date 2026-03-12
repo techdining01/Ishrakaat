@@ -17,6 +17,7 @@ import json
 
 from .models import Payment, SavedCard
 from .paystack import Paystack
+from .card_management import CardManager
 from donations.models import Transaction
 
 User = get_user_model()
@@ -69,7 +70,122 @@ class CreateVirtualAccountView(APIView):
                 "bank_name": user.virtual_bank_name
             }, status=status.HTTP_201_CREATED)
         else:
-            return Response({"error": "Failed to create virtual account", "details": data}, status=status.HTTP_400_BAD_REQUEST)
+            print(f"Virtual account creation failed: {data}")
+            error_message = "Failed to create virtual account"
+            if isinstance(data, dict):
+                if 'message' in data:
+                    if 'Dedicated NUBAN is not available' in data['message']:
+                        error_message = "Virtual accounts are not available. Please use the deposit option to add funds."
+                    else:
+                        error_message = data['message']
+                elif 'error' in data:
+                    error_message = data['error']
+            return Response({
+                "error": error_message, 
+                "details": data,
+                "fallback_available": True
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+class SaveCardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        card_manager = CardManager()
+        
+        # This endpoint is called after a successful transaction to save the card
+        # The card details come from the transaction authorization
+        transaction_ref = request.data.get('transaction_ref')
+        
+        if not transaction_ref:
+            return Response({
+                "error": "Transaction reference is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Get the payment transaction
+            payment = Payment.objects.get(reference=transaction_ref, user=user, status='SUCCESS')
+            
+            # Get transaction details from Paystack to extract card info
+            paystack = Paystack()
+            status, result = paystack.verify_payment(transaction_ref)
+            
+            if status and result.get('status') == 'success':
+                auth = result.get('authorization')
+                if auth:
+                    card, message = card_manager.save_card_from_transaction(
+                        user=user,
+                        authorization_code=auth.get('authorization_code'),
+                        email=user.email,
+                        card_type=auth.get('card_type'),
+                        last4=auth.get('last4'),
+                        exp_month=auth.get('exp_month'),
+                        exp_year=auth.get('exp_year')
+                    )
+                    return Response({
+                        "message": message,
+                        "card": {
+                            "id": card.id,
+                            "card_type": card.card_type,
+                            "last4": card.last4,
+                            "exp_month": card.exp_month,
+                            "exp_year": card.exp_year
+                        }
+                    }, status=status.HTTP_201_CREATED)
+                else:
+                    return Response({
+                        "error": "No card authorization found in transaction"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({
+                    "error": "Transaction verification failed"
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Payment.DoesNotExist:
+            return Response({
+                "error": "Transaction not found or not successful"
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                "error": f"Failed to save card: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def get(self, request):
+        """Get user's saved cards"""
+        user = request.user
+        card_manager = CardManager()
+        
+        cards = card_manager.get_saved_cards(user)
+        cards_data = []
+        
+        for card in cards:
+            cards_data.append({
+                "id": card.id,
+                "card_type": card.card_type,
+                "last4": card.last4,
+                "exp_month": card.exp_month,
+                "exp_year": card.exp_year,
+                "created_at": card.created_at
+            })
+        
+        return Response({
+            "cards": cards_data,
+            "count": len(cards_data)
+        })
+
+class DeleteCardView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def delete(self, request, card_id):
+        user = request.user
+        card_manager = CardManager()
+        
+        success, message = card_manager.deactivate_card(user, card_id)
+        
+        if success:
+            return Response({"message": message})
+        else:
+            return Response({"error": message}, status=status.HTTP_404_NOT_FOUND)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class PaystackWebhookView(APIView):
