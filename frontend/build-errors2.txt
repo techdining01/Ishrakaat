@@ -1,0 +1,22 @@
+
+> frontend@0.1.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 12.4s
+  Running TypeScript ...
+Failed to compile.
+
+./src/app/dashboard/page.tsx:124:13
+Type error: Cannot find name 'apiDelete'.
+
+[0m [90m 122 |[39m   [36masync[39m [36mfunction[39m deleteCard(cardId[33m:[39m number) {
+ [90m 123 |[39m     [36mtry[39m {
+[31m[1m>[22m[39m[90m 124 |[39m       [36mawait[39m apiDelete([32m`/payments/cards/${cardId}/delete/`[39m[33m,[39m [36mtrue[39m)[33m;[39m
+ [90m     |[39m             [31m[1m^[22m[39m
+ [90m 125 |[39m       addToast([32m"Card removed successfully"[39m[33m,[39m [32m"success"[39m)[33m;[39m
+ [90m 126 |[39m       loadSavedCards()[33m;[39m [90m// Reload cards[39m
+ [90m 127 |[39m     } [36mcatch[39m (error) {[0m
+Next.js build worker exited with code: 1 and signal: null

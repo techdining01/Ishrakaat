@@ -1,0 +1,7 @@
+BACKUP CREATED: Manual backup needed
+To backup the project:
+1. Copy the entire Ishrakaat folder to a safe location
+2. Exclude: node_modules, .git, __pycache__, *.pyc, db.sqlite3
+3. Keep this as your restore point
+
+Current state saved at: 2026-03-11 06:56 UTC

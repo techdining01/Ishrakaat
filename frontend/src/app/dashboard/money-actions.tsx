@@ -29,6 +29,8 @@ export function MoneyActions({ onDepositStarted }: Props) {
         data.data?.authorization_url || data.data?.authorizationUrl || null;
       if (url) {
         if (onDepositStarted) onDepositStarted();
+        // Store reference for card saving after payment
+        sessionStorage.setItem('saveCardAfterDeposit', 'true');
         window.location.href = url;
       } else {
         setError("Could not get payment link from Paystack.");
@@ -57,8 +59,8 @@ export function MoneyActions({ onDepositStarted }: Props) {
       } else {
         setError("Could not create or fetch virtual account.");
       }
-    } catch {
-      setError("Could not create or fetch virtual account.");
+    } catch (err: any) {
+      setError(err?.message || "Could not create or fetch virtual account.");
     } finally {
       setLoadingAccount(false);
     }

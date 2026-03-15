@@ -303,7 +303,7 @@ export default function AdminDashboardPage() {
           </div>
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-slate-300">
-              Ishrakaat
+              Ishrapay
             </p>
             <p className="text-lg font-semibold text-slate-50">
               Admin dashboard
@@ -323,143 +323,48 @@ export default function AdminDashboardPage() {
 
       <main className="flex-1 flex flex-col gap-4 md:space-y-4 md:block">
         {showStatsCard && (
-          <section className="rounded-2xl border border-emerald-700 bg-slate-950/70 p-4 shadow-[0_18px_40px_rgba(16,185,129,0.45)]">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-300">
-                National / State overview • Money inflow / outflow
-              </p>
-              <div className="flex items-center gap-2">
-                <div className="hidden md:flex items-center gap-1 text-[10px]">
-                  <button
-                    type="button"
-                    onClick={() => setStatsDays(7)}
-                    className={
-                      "rounded-full border px-2 py-0.5 " +
-                      (statsDays === 7
-                        ? "border-emerald-500 bg-emerald-500/10 text-emerald-200"
-                        : "border-slate-700 text-slate-200")
-                    }
-                  >
-                    7 days
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStatsDays(30)}
-                    className={
-                      "rounded-full border px-2 py-0.5 " +
-                      (statsDays === 30
-                        ? "border-emerald-500 bg-emerald-500/10 text-emerald-200"
-                        : "border-slate-700 text-slate-200")
-                    }
-                  >
-                    30 days
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStatsDays(90)}
-                    className={
-                      "rounded-full border px-2 py-0.5 " +
-                      (statsDays === 90
-                        ? "border-emerald-500 bg-emerald-500/10 text-emerald-200"
-                        : "border-slate-700 text-slate-200")
-                    }
-                  >
-                    90 days
-                  </button>
+          <section className="rounded-3xl border border-slate-800 bg-slate-900/40 backdrop-blur-xl p-6 shadow-2xl relative overflow-hidden group">
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-4 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="h-2 w-8 bg-emerald-500 rounded-full"></div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-400">
+                    Financial Inflow & Outflow
+                  </p>
+                  <p className="text-[10px] text-slate-500">
+                    {stats ? "Real-time overview" : statsError || "Awaiting data..."}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <div className="bg-slate-950/50 p-1 rounded-full border border-slate-800 flex items-center gap-1">
+                  {[7, 30, 90].map(days => (
+                    <button
+                      key={days}
+                      type="button"
+                      onClick={() => setStatsDays(days as any)}
+                      className={`px-3 py-1 rounded-full text-[9px] font-bold transition-all ${
+                        statsDays === days 
+                          ? "bg-emerald-500 text-slate-950" 
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      {days}D
+                    </button>
+                  ))}
                 </div>
                 <button
                   type="button"
                   onClick={downloadCsv}
                   disabled={downloadingCsv || !stats}
-                  className="rounded-full border border-slate-700 px-2.5 py-1 text-[10px] text-slate-100 active:scale-[0.97] disabled:opacity-50"
+                  className="rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 text-[10px] font-bold text-slate-100 transition-all active:scale-[0.97] disabled:opacity-50"
                 >
-                  {downloadingCsv ? "Preparing..." : "Download report"}
+                  {downloadingCsv ? "Preparing..." : "Export CSV"}
                 </button>
-                <span className="text-[10px] text-slate-500">
-                  {stats ? "Overview" : statsError || "No data"}
-                </span>
               </div>
             </div>
-            {stats && stats.labels.length > 0 ? (
-              <div className="relative h-32 md:h-40">
-                <div className="absolute inset-0 flex flex-col justify-between text-[9px] text-slate-500">
-                  <div className="flex-1 flex items-end gap-1">
-                    {stats.labels.map((label, idx) => {
-                      const inflow = stats.inflow[idx] || 0;
-                      const outflow = stats.outflow[idx] || 0;
-                      const max = Math.max(
-                        ...stats.inflow,
-                        ...stats.outflow,
-                        1
-                      );
-                      const inflowHeight = Math.round((inflow / max) * 100);
-                      const outflowHeight = Math.round((outflow / max) * 100);
-                      const isActive = hoverIndex === idx;
-                      return (
-                        <button
-                          key={label}
-                          type="button"
-                          onMouseEnter={() => setHoverIndex(idx)}
-                          onMouseLeave={() => setHoverIndex(null)}
-                          className="flex-1 flex flex-col items-center gap-0.5 focus:outline-none"
-                        >
-                          <div className="flex w-full items-end gap-0.5 h-16 md:h-24">
-                            <div
-                              className={
-                                "flex-1 rounded-full " +
-                                (isActive
-                                  ? "bg-emerald-400"
-                                  : "bg-emerald-500/60")
-                              }
-                              style={{ height: `${inflowHeight}%` }}
-                            />
-                            <div
-                              className={
-                                "flex-1 rounded-full " +
-                                (isActive
-                                  ? "bg-rose-400"
-                                  : "bg-rose-500/60")
-                              }
-                              style={{ height: `${outflowHeight}%` }}
-                            />
-                          </div>
-                          <span className="mt-0.5 truncate text-[8px] text-slate-500">
-                            {label.slice(5)}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-2 flex items-center justify-between gap-3 text-[9px]">
-                    <div className="flex items-center gap-1">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                      <span className="text-slate-400">Inflow</span>
-                      <span className="h-2 w-2 rounded-full bg-rose-500 ml-3" />
-                      <span className="text-slate-400">Outflow</span>
-                    </div>
-                    {hoverIndex !== null && stats.labels[hoverIndex] && (
-                      <div className="rounded-full bg-slate-900/80 px-3.5 py-1.5 border border-slate-700 text-xs text-slate-200">
-                        <span className="mr-2">
-                          {stats.labels[hoverIndex]}
-                        </span>
-                        <span className="mr-2">
-                          In: ₦
-                          {stats.inflow[hoverIndex].toLocaleString()}
-                        </span>
-                        <span>
-                          Out: ₦
-                          {stats.outflow[hoverIndex].toLocaleString()}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <p className="text-[11px] text-slate-400">
-                No transactions yet for this period.
-              </p>
-            )}
+            <p className="text-[11px] text-slate-400 p-6">Charts and detailed stats are only available to National and State admins.</p>
           </section>
         )}
 
@@ -770,94 +675,62 @@ export default function AdminDashboardPage() {
                         </button>
                       )}
                       {me?.admin_level === "LOCAL_GOVT" && (
-                        <button
-                          type="button"
-                          disabled={promotingId === user.id}
-                          onClick={() =>
-                            promoteUser(user.id, "WARD")
-                          }
-                          className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-100 active:scale-[0.97] disabled:opacity-60"
-                        >
-                          Ward admin
-                        </button>
+                        <div className="flex flex-wrap justify-end gap-1">
+                          <button
+                            type="button"
+                            disabled={promotingId === user.id}
+                            onClick={() => promoteUser(user.id, "WARD")}
+                            className={`rounded-full px-2 py-1 text-[9px] font-bold border transition-all ${user.admin_level === "WARD" ? "bg-emerald-500 text-slate-950 border-emerald-500" : "bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-600"}`}
+                          >
+                            Ward
+                          </button>
+                        </div>
                       )}
                       {me?.admin_level === "STATE" && (
-                        <>
+                        <div className="flex flex-wrap justify-end gap-1">
+                          {["WARD", "LOCAL_GOVT"].map((lvl) => (
+                            <button
+                              key={lvl}
+                              type="button"
+                              disabled={promotingId === user.id}
+                              onClick={() => promoteUser(user.id, lvl as any)}
+                              className={`rounded-full px-2 py-1 text-[9px] font-bold border transition-all ${user.admin_level === lvl ? "bg-emerald-500 text-slate-950 border-emerald-500" : "bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-600"}`}
+                            >
+                              {lvl === "LOCAL_GOVT" ? "LGA" : "Ward"}
+                            </button>
+                          ))}
                           <button
                             type="button"
                             disabled={promotingId === user.id}
-                            onClick={() =>
-                              promoteUser(user.id, "WARD")
-                            }
-                            className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-100 active:scale-[0.97] disabled:opacity-60"
+                            onClick={() => promoteUser(user.id, "NONE")}
+                            className="rounded-full border border-rose-500/30 text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 px-2 py-1 text-[9px] font-bold transition-all"
                           >
-                            Ward admin
+                            Degrade
                           </button>
-                          <button
-                            type="button"
-                            disabled={promotingId === user.id}
-                            onClick={() =>
-                              promoteUser(user.id, "LOCAL_GOVT")
-                            }
-                            className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-100 active:scale-[0.97] disabled:opacity-60"
-                          >
-                            Local govt admin
-                          </button>
-                          <button
-                            type="button"
-                            disabled={promotingId === user.id}
-                            onClick={() =>
-                              promoteUser(user.id, "STATE")
-                            }
-                            className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-100 active:scale-[0.97] disabled:opacity-60"
-                          >
-                            State admin
-                          </button>
-                        </>
+                        </div>
                       )}
                       {me?.admin_level === "NATIONAL" && (
-                        <>
+                        <div className="flex flex-wrap justify-end gap-1">
+                          {["WARD", "LOCAL_GOVT", "STATE", "NATIONAL"].map((lvl) => (
+                            <button
+                              key={lvl}
+                              type="button"
+                              disabled={promotingId === user.id}
+                              onClick={() => promoteUser(user.id, lvl as any)}
+                              className={`rounded-full px-2 py-1 text-[9px] font-bold border transition-all ${user.admin_level === lvl ? "bg-emerald-500 text-slate-950 border-emerald-500" : "bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-600"}`}
+                            >
+                              {lvl === "LOCAL_GOVT" ? "LGA" : lvl.charAt(0) + lvl.slice(1).toLowerCase()}
+                            </button>
+                          ))}
                           <button
                             type="button"
                             disabled={promotingId === user.id}
-                            onClick={() =>
-                              promoteUser(user.id, "WARD")
-                            }
-                            className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-100 active:scale-[0.97] disabled:opacity-60"
+                            onClick={() => promoteUser(user.id, "NONE")}
+                            className="rounded-full border border-rose-500/30 text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 px-2 py-1 text-[9px] font-bold transition-all"
                           >
-                            Ward admin
+                            Degrade
                           </button>
-                          <button
-                            type="button"
-                            disabled={promotingId === user.id}
-                            onClick={() =>
-                              promoteUser(user.id, "LOCAL_GOVT")
-                            }
-                            className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-100 active:scale-[0.97] disabled:opacity-60"
-                          >
-                            Local govt admin
-                          </button>
-                          <button
-                            type="button"
-                            disabled={promotingId === user.id}
-                            onClick={() =>
-                              promoteUser(user.id, "STATE")
-                            }
-                            className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-100 active:scale-[0.97] disabled:opacity-60"
-                          >
-                            State admin
-                          </button>
-                          <button
-                            type="button"
-                            disabled={promotingId === user.id}
-                            onClick={() =>
-                              promoteUser(user.id, "NATIONAL")
-                            }
-                            className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-100 active:scale-[0.97] disabled:opacity-60"
-                          >
-                            National admin
-                          </button>
-                        </>
+                        </div>
                       )}
                     </div>
                   </div>

@@ -3,7 +3,7 @@
 import { useEffect, useState, FormEvent } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet, apiPost, apiDelete } from "@/lib/api";
 
 interface DonationType {
   id: number;
@@ -21,7 +21,7 @@ const sectionConfig: Record<
   { title: string; description: string; categoryFilter: string | null }
 > = {
   ishrakaat: {
-    title: "Ishrakaat",
+    title: "Ishrapay",
     description: "Core donation campaigns and ongoing projects.",
     categoryFilter: "PROJECT",
   },
@@ -115,6 +115,7 @@ export default function SectionPage() {
   const [createCampaignMessage, setCreateCampaignMessage] = useState("");
   const [createCampaignError, setCreateCampaignError] = useState("");
   const [creatingCampaign, setCreatingCampaign] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -126,9 +127,15 @@ export default function SectionPage() {
           apiGet("/auth/me/", true).catch(() => null),
         ]);
         setProfile(me);
+        const now = Date.now();
+        const base = (campaignsData as DonationType[]).filter((c) => {
+          if (!c.deadline) return true;
+          const d = new Date(c.deadline).getTime();
+          return d >= now;
+        });
         const filtered = config.categoryFilter
-          ? (campaignsData as DonationType[]).filter((c) => c.category === config.categoryFilter)
-          : (campaignsData as DonationType[]);
+          ? base.filter((c) => c.category === config.categoryFilter)
+          : base;
         setCampaigns(filtered);
       } catch {
         setError("Could not load campaigns.");
@@ -167,6 +174,21 @@ export default function SectionPage() {
       );
     } finally {
       setDonatingId(null);
+    }
+  }
+
+  async function handleDelete(id: number) {
+    if (!profile?.is_staff) return;
+    setDonationMessage("");
+    setDeletingId(id);
+    try {
+      await apiDelete(`/donations/campaigns/${id}/`, true);
+      setCampaigns((prev) => prev.filter((c) => c.id !== id));
+      setDonationMessage("Campaign deleted.");
+    } catch {
+      setDonationMessage("Could not delete campaign.");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -249,7 +271,9 @@ export default function SectionPage() {
       return;
     }
 
-    const categoryToUse = config.categoryFilter || newCampaignCategory;
+    const categoryToUse = (isAqsah || isWaqf)
+      ? newCampaignCategory
+      : (config.categoryFilter || newCampaignCategory);
     if (!categoryToUse) {
       setCreateCampaignError("Please select a category for the campaign.");
       return;
@@ -363,27 +387,25 @@ export default function SectionPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-50 px-4 pb-6 pt-4">
-      <header className="mb-4 flex items-center justify-between">
-        <div>
-          <p className="text-sm uppercase tracking-[0.22em] text-slate-300">
-            Ishrakaat
-          </p>
-          <p className="text-base md:text-lg font-semibold text-slate-50">
-            {config.title}
-          </p>
+      {/* Dynamic Header */}
+      <div className="relative overflow-hidden rounded-3xl glass-panel p-6 md:p-10 border border-emerald-500/20 shadow-[0_8px_32px_rgba(16,185,129,0.1)] group mb-6 mt-2 md:mt-0 w-full max-w-3xl mx-auto">
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/20 rounded-full blur-[80px] group-hover:bg-emerald-400/30 transition-all duration-700"></div>
+        <div className="relative z-10 flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl md:text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white to-emerald-200 tracking-tight mb-2 drop-shadow-sm">
+              {config.title}
+            </h1>
+            <p className="text-emerald-100/70 text-sm md:text-base max-w-md leading-relaxed font-medium">
+              {config.description}
+            </p>
+          </div>
+          <Link href="/" className="shrink-0 p-3 rounded-full bg-slate-900/80 border border-slate-700 hover:bg-slate-800 transition-colors backdrop-blur-md">
+            <span className="text-xl">🏠</span>
+          </Link>
         </div>
-        <Link
-          href="/"
-          className="rounded-full border border-slate-700 px-3 py-1.5 text-sm text-slate-200"
-        >
-          Home
-        </Link>
-      </header>
+      </div>
 
-      <main className="flex-1 space-y-3">
-        <p className="text-xs md:text-sm text-slate-300">
-          {config.description}
-        </p>
+      <main className="flex-1 space-y-3 w-full max-w-3xl mx-auto">
 
         {isWaqf && (
         <section className="rounded-2xl border border-violet-500/40 bg-violet-950/30 p-4 text-sm space-y-3">
@@ -520,7 +542,7 @@ export default function SectionPage() {
                     onChange={(e) => setWaqfMethod(e.target.value as any)}
                   >
                     <option value="EXECUTE">Project Execution Request (Do in my name)</option>
-                    <option value="HANDOVER">Asset Handover (Surrender to Ishrakaat)</option>
+                    <option value="HANDOVER">Asset Handover (Surrender to Ishrapay)</option>
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -638,21 +660,21 @@ export default function SectionPage() {
       )}
 
         {profile?.is_staff && (
-          <section className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-xs">
+          <section className="rounded-3xl glass-panel card-hover p-5 md:p-8 text-sm flex flex-col relative overflow-hidden group">
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
               Admin: Create new {config.title} campaign
             </p>
             <form onSubmit={handleCreateCampaign} className="space-y-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <input
-                  className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 outline-none ring-0 focus:border-emerald-400"
+                  className="rounded-xl border border-slate-700/50 bg-slate-900/50 px-4 py-3 text-base font-semibold text-slate-50 outline-none ring-0 focus:border-emerald-500 focus:bg-slate-900/80 transition-all placeholder:text-slate-500 shadow-inner"
                   placeholder="Campaign Title"
                   value={newCampaignName}
                   onChange={(e) => setNewCampaignName(e.target.value)}
                 />
-                {!config.categoryFilter && (
+                {(!config.categoryFilter || isAqsah || isWaqf) && (
                   <select
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 outline-none ring-0 focus:border-emerald-400"
+                    className="rounded-xl border border-slate-700/50 bg-slate-900/50 px-4 py-3 text-base font-semibold text-slate-50 outline-none ring-0 focus:border-emerald-500 focus:bg-slate-900/80 transition-all placeholder:text-slate-500 shadow-inner"
                     value={newCampaignCategory}
                     onChange={(e) => setNewCampaignCategory(e.target.value)}
                   >
@@ -663,7 +685,7 @@ export default function SectionPage() {
                   </select>
                 )}
                 <input
-                  className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 outline-none ring-0 focus:border-emerald-400"
+                  className="rounded-xl border border-slate-700/50 bg-slate-900/50 px-4 py-3 text-base font-semibold text-slate-50 outline-none ring-0 focus:border-emerald-500 focus:bg-slate-900/80 transition-all placeholder:text-slate-500 shadow-inner"
                   placeholder="Target Amount (Optional)"
                   type="number"
                   value={newCampaignTarget}
@@ -671,7 +693,7 @@ export default function SectionPage() {
                 />
               </div>
               <textarea
-                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 outline-none ring-0 focus:border-emerald-400"
+                className="w-full rounded-xl border border-slate-700/50 bg-slate-900/50 px-4 py-3 text-base font-semibold text-slate-50 outline-none ring-0 focus:border-emerald-500 focus:bg-slate-900/80 transition-all placeholder:text-slate-500 shadow-inner"
                 placeholder="Campaign Description"
                 rows={2}
                 value={newCampaignDescription}
@@ -683,7 +705,7 @@ export default function SectionPage() {
                     Deadline (Optional)
                   </label>
                   <input
-                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 outline-none ring-0 focus:border-emerald-400"
+                    className="w-full rounded-xl border border-slate-700/50 bg-slate-900/50 px-4 py-3 text-base font-semibold text-slate-50 outline-none ring-0 focus:border-emerald-500 focus:bg-slate-900/80 transition-all placeholder:text-slate-500 shadow-inner"
                     type="date"
                     value={newCampaignDeadline}
                     onChange={(e) => setNewCampaignDeadline(e.target.value)}
@@ -712,7 +734,7 @@ export default function SectionPage() {
         )}
 
         {isWelfare && (
-          <section className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-sm space-y-3">
+          <section className="rounded-3xl glass-panel card-hover p-5 md:p-8 text-sm space-y-3 flex flex-col relative overflow-hidden group">
             <div className="space-y-1">
               <p className="text-xs md:text-[13px] font-semibold uppercase tracking-[0.24em] text-slate-400">
                 Welfare focus
@@ -880,10 +902,10 @@ export default function SectionPage() {
                   </p>
                 )}
               </form>
-
+            
               <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 space-y-2">
                 <p className="text-sm font-semibold text-slate-100">
-                  Welfare donation portal
+                  Welfare donation
                 </p>
                 <p className="text-xs md:text-sm text-slate-300">
                   Donate specifically towards orphans, widows, or needy
@@ -943,6 +965,7 @@ export default function SectionPage() {
                   </button>
                 </div>
               </div>
+
 
               <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 space-y-2">
                 <p className="text-sm font-semibold text-amber-100">
@@ -1047,6 +1070,10 @@ export default function SectionPage() {
         <div className="space-y-2">
           {campaigns.map((campaign) => {
             const isImpromptu = campaign.category === "IMPROMPTU";
+            const isExpired =
+              !!campaign.deadline &&
+              new Date(campaign.deadline).getTime() < Date.now();
+            if (isExpired) return null;
             return (
               <div
                 key={campaign.id}
@@ -1108,13 +1135,25 @@ export default function SectionPage() {
                         }))
                       }
                     />
-                    <button
-                      onClick={() => handleDonate(campaign)}
-                      disabled={donatingId === campaign.id}
-                      className="rounded-full bg-emerald-500 px-3 py-1 text-sm font-semibold text-slate-950 active:scale-[0.97] disabled:opacity-60"
-                    >
-                      {donatingId === campaign.id ? "Processing..." : "Donate"}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleDonate(campaign)}
+                        disabled={donatingId === campaign.id}
+                        className="rounded-full bg-emerald-500 px-3 py-1 text-sm font-semibold text-slate-950 active:scale-[0.97] disabled:opacity-60"
+                      >
+                        {donatingId === campaign.id ? "Processing..." : "Donate"}
+                      </button>
+                      {profile?.is_staff && (
+                        <button
+                          onClick={() => handleDelete(campaign.id)}
+                          disabled={deletingId === campaign.id}
+                          className="rounded-full bg-rose-500 px-3 py-1 text-sm font-semibold text-white active:scale-[0.97] disabled:opacity-60"
+                          title="Delete campaign"
+                        >
+                          {deletingId === campaign.id ? "Deleting..." : "Delete"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

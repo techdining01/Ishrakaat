@@ -1,0 +1,22 @@
+
+> frontend@0.1.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 11.2s
+  Running TypeScript ...
+Failed to compile.
+
+./src/app/page.tsx:133:17
+Type error: Object literal may only specify known properties, and 'renotify' does not exist in type 'NotificationOptions'.
+
+[0m [90m 131 |[39m                 icon[33m:[39m [32m"/favicon.ico"[39m[33m,[39m
+ [90m 132 |[39m                 tag[33m:[39m [32m"monthly-due"[39m[33m,[39m
+[31m[1m>[22m[39m[90m 133 |[39m                 renotify[33m:[39m [36mtrue[39m[33m,[39m
+ [90m     |[39m                 [31m[1m^[22m[39m
+ [90m 134 |[39m                 data[33m:[39m { url[33m:[39m [32m"/dashboard"[39m }[33m,[39m
+ [90m 135 |[39m               })[33m;[39m
+ [90m 136 |[39m             })[33m.[39m[36mcatch[39m(() [33m=>[39m { })[33m;[39m[0m
+Next.js build worker exited with code: 1 and signal: null

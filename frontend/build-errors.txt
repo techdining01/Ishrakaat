@@ -1,0 +1,28 @@
+
+> frontend@0.1.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+
+  Creating an optimized production build ...
+
+> Build error occurred
+Error: Turbopack build failed with 1 errors:
+./src/app/dashboard/page.tsx:772:15
+Parsing ecmascript source code failed
+[0m [90m 770 |[39m             [33m<[39m[33m/[39m[33mdiv[39m[33m>[39m
+ [90m 771 |[39m           [33m<[39m[33m/[39m[33msection[39m[33m>[39m
+[31m[1m>[22m[39m[90m 772 |[39m         [33m<[39m[33m/[39m[33mdiv[39m[33m>[39m
+ [90m     |[39m               [31m[1m^[22m[39m
+[31m[1m>[22m[39m[90m 773 |[39m
+ [90m     |[39m [31m[1m^[22m[39m
+[31m[1m>[22m[39m[90m 774 |[39m         [33m<[39m[33msection[39m className[33m=[39m[32m"space-y-4"[39m[33m>[39m
+ [90m     |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 775 |[39m           [33m<[39m[33mdiv[39m className[33m=[39m[32m"flex items-center justify-between border-b border-slate-800 pb-2"[39m[33m>[39m
+ [90m 776 |[39m             [33m<[39m[33mdiv[39m className[33m=[39m[32m"flex gap-4"[39m[33m>[39m
+ [90m 777 |[39m               [33m<[39m[33mbutton[39m[0m
+
+Expected '</', got 'jsx text'
+
+
+    at <unknown> (./src/app/dashboard/page.tsx:772:15)

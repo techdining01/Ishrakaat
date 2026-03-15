@@ -1,9 +1,9 @@
 "use client";
 
-
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, FormEvent } from "react";
 import Link from "next/link";
-import { apiGet, apiPatch, apiPatchForm } from "@/lib/api";
+import { apiGet, apiPost, apiDelete, apiPatch, apiPatchForm } from "@/lib/api";
+import { useToast, ToastProvider } from "@/components/ui/toast";
 import { MoneyActions } from "./money-actions";
 
 interface FastStats {
@@ -66,6 +66,68 @@ export default function DashboardPage() {
   const [selectedHeirs, setSelectedHeirs] = useState<Record<string, number>>({});
   const [calendarMode, setCalendarMode] = useState<'hijri'>('hijri');
   const [viewDate, setViewDate] = useState(new Date());
+  const [creatingCard, setCreatingCard] = useState(false);
+  const [savedCards, setSavedCards] = useState<any[]>([]);
+  const [loadingCards, setLoadingCards] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  
+  const { addToast, removeToast, toasts } = useToast();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Load saved cards
+  useEffect(() => {
+    loadSavedCards();
+    checkAndSaveCardFromDeposit();
+  }, []);
+
+  async function checkAndSaveCardFromDeposit() {
+    // Check if user just completed a deposit and wants to save card
+    const saveCard = sessionStorage.getItem('saveCardAfterDeposit');
+    const urlParams = new URLSearchParams(window.location.search);
+    const reference = urlParams.get('reference');
+    
+    if (saveCard === 'true' && reference) {
+      try {
+        const response = await apiPost('/payments/cards/save/', { transaction_ref: reference }, true);
+        if (response.card) {
+          addToast('Card saved successfully!', 'success');
+          loadSavedCards(); // Reload saved cards
+        }
+        sessionStorage.removeItem('saveCardAfterDeposit');
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (error) {
+        console.error('Failed to save card:', error);
+        // Don't show error to user as card saving is optional
+        sessionStorage.removeItem('saveCardAfterDeposit');
+      }
+    }
+  }
+
+  async function loadSavedCards() {
+    setLoadingCards(true);
+    try {
+      const response = await apiGet("/payments/cards/", true);
+      setSavedCards(response.cards || []);
+    } catch (error) {
+      console.error("Failed to load saved cards:", error);
+    } finally {
+      setLoadingCards(false);
+    }
+  }
+
+  async function deleteCard(cardId: number) {
+    try {
+      await apiDelete(`/payments/cards/${cardId}/delete/`, true);
+      addToast("Card removed successfully", "success");
+      loadSavedCards(); // Reload cards
+    } catch (error) {
+      addToast("Failed to remove card", "error");
+    }
+  }
 
   const getCalendarMetadata = () => {
     const hijriFormatter = new Intl.DateTimeFormat('en-US-u-ca-islamic-umalqura', { day: 'numeric', month: 'numeric', year: 'numeric' });
@@ -337,10 +399,15 @@ export default function DashboardPage() {
 
   const displayName = profile?.first_name || profile?.username || "Guest";
   const avatarInitial = displayName.charAt(0).toUpperCase();
+  
+  if (!mounted) return null;
+
   const { monthName, year, firstDayInfo, startsOn, day1Year } = getCalendarMetadata();
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-50 px-4 pb-6 pt-4">
+    <React.Fragment>
+      <ToastProvider toasts={toasts} onRemove={removeToast} />
+      <div className="flex-1 space-y-4">
       <header className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center text-sm font-semibold text-emerald-100 overflow-hidden">
@@ -356,7 +423,7 @@ export default function DashboardPage() {
           </div>
           <div>
             <p className="text-sm uppercase tracking-[0.18em] text-slate-300">
-              Ishrakaat
+              Ishrapay
             </p>
             <p className="text-lg font-semibold text-slate-50">
               {displayName}
@@ -379,9 +446,11 @@ export default function DashboardPage() {
         </Link>
       </header>
 
-      <main className="flex-1 space-y-4">
+      <div className="flex-1 space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
-          <section className="rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
+          <section className="rounded-3xl glass-panel card-hover p-6 md:p-8 flex flex-col relative overflow-hidden group">
+            {/* Ambient glow for the cards */}
+            <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all duration-500"></div>
             <div className="mb-2 flex items-center justify-between">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-200">Quick stats</p>
               <span className="rounded-full bg-slate-900 px-2.5 py-0.5 text-xs text-slate-300 border border-slate-800">
@@ -445,7 +514,8 @@ export default function DashboardPage() {
             )}
           </section>
 
-          <section className="rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
+          <section className="rounded-3xl glass-panel card-hover p-6 md:p-8 flex flex-col relative overflow-hidden group">
+            <div className="absolute -top-10 -right-10 w-32 h-32 bg-sky-500/10 rounded-full blur-3xl group-hover:bg-sky-500/20 transition-all duration-500"></div>
             <div className="mb-2 flex items-center justify-between">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-200">
                 Money Box
@@ -469,22 +539,84 @@ export default function DashboardPage() {
               <div className="text-right text-sm text-slate-300">
                 <p>
                   Monthly target: ₦
-                  {settings
-                    ? Number(settings.monthly_amount || 0).toLocaleString()
-                    : "0.00"}
+                  {settings ? Number(settings.monthly_amount || 0).toLocaleString() : '0.00'}
                 </p>
+                <p className="text-xs text-slate-400">
+                  Cards are saved securely via Paystack tokenization for safe recurring payments.
+                </p>
+                
+                {/* Saved Cards List */}
+                {savedCards.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs font-semibold text-slate-400">Saved Cards ({savedCards.length})</p>
+                    {savedCards.map((card) => (
+                      <div key={card.id} className="flex items-center justify-between rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <div className="text-xs font-medium text-slate-200">
+                            {card.card_type.toUpperCase()} •••• {card.last4}
+                          </div>
+                          <div className="text-xs text-slate-400">
+                            {card.exp_month}/{card.exp_year}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => deleteCard(card.id)}
+                          className="text-xs text-red-400 hover:text-red-300"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Add Card Button */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    // Redirect to deposit page to add a card
+                    window.location.href = "/dashboard";
+                  }}
+                  className="w-full rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 active:scale-[0.97]"
+                >
+                  {savedCards.length > 0 ? "Add Another Card" : "Add ATM Card"}
+                </button>
+                
+                <div className="mt-2 pt-2 border-t border-slate-700">
+                  <p className="text-xs text-slate-400 mb-1">How to add a card:</p>
+                  <ol className="text-xs text-slate-300 space-y-1">
+                    <li>1. Use "Quick deposit" below to make a payment</li>
+                    <li>2. Complete the payment with your card</li>
+                    <li>3. Card will be automatically saved for future use</li>
+                  </ol>
+                </div>
               </div>
             </div>
-            <div className="mt-4 space-y-3">
-              <div className="flex items-center gap-2 text-sm">
-                <input
-                  className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-50 outline-none ring-0 focus:border-emerald-400"
-                  type="number"
-                  min="0"
-                  placeholder="Set monthly amount"
-                  value={monthlyInput}
-                  onChange={(e) => setMonthlyInput(e.target.value)}
-                />
+          </section>
+
+          <section className="rounded-3xl glass-panel card-hover p-6 md:p-8 flex flex-col justify-between relative overflow-hidden group">
+            <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-teal-500/10 rounded-full blur-3xl group-hover:bg-teal-500/20 transition-all duration-500"></div>
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-200">
+                  Monthly Target
+                </p>
+              </div>
+              <div className="space-y-3 text-sm">
+                <p className="text-slate-300">
+                  Set a monthly donation target to track your goals.
+                </p>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold">₦</span>
+                  <input
+                    className="w-full rounded-lg border border-slate-700 bg-slate-900 pl-8 pr-3 py-2 text-sm text-slate-50 outline-none ring-0 focus:border-emerald-400"
+                    type="number"
+                    min="0"
+                    placeholder="0.00"
+                    value={monthlyInput}
+                    onChange={(e) => setMonthlyInput(e.target.value)}
+                  />
+                </div>
                 <button
                   type="button"
                   disabled={savingMonthly}
@@ -512,14 +644,16 @@ export default function DashboardPage() {
                       setSavingMonthly(false);
                     }
                   }}
-                  className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-950 active:scale-[0.97] disabled:opacity-60"
+                  className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-950 active:scale-[0.97] disabled:opacity-60 mt-2"
                 >
                   {savingMonthly ? "Saving..." : "Save monthly"}
                 </button>
+                {monthlyMessage && (
+                  <p className="text-xs text-slate-200">{monthlyMessage}</p>
+                )}
               </div>
-              {monthlyMessage && (
-                <p className="text-xs text-slate-200">{monthlyMessage}</p>
-              )}
+            </div>
+            <div className="mt-4 border-t border-slate-800 pt-4">
               <MoneyActions />
             </div>
           </section>
@@ -706,8 +840,8 @@ export default function DashboardPage() {
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                 {islamicCards.filter(c => c.icon_name !== 'calendar').map((card, idx) => (
-                  <div key={idx} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 flex flex-col items-center text-center space-y-2 hover:border-emerald-500/50 transition-all group">
-                    <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+                  <div key={idx} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 flex flex-col items-center text-center space-y-4 hover:border-emerald-500/50 transition-all group scale-up shadow-lg">
+                    <div className="h-16 w-16 rounded-full bg-emerald-500/10 flex items-center justify-center text-3xl text-emerald-400 group-hover:scale-110 transition-transform shadow-[inset_0_0_15px_rgba(16,185,129,0.1)]">
                       {card.icon_name === 'users' && <span>👥</span>}
                       {card.icon_name === 'arrow-down' && <span>⬇️</span>}
                       {card.icon_name === 'heart' && <span>❤️</span>}
@@ -715,9 +849,11 @@ export default function DashboardPage() {
                       {card.icon_name === 'book' && <span>📖</span>}
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500/80">{card.title}</p>
-                      <p className="text-xs font-bold text-slate-100 mt-1">{card.content}</p>
-                      {card.arabic_title && <p className="text-xs arabic-font text-emerald-300/60 mt-1">{card.arabic_title}</p>}
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-500">{card.title}</p>
+                      <p className="text-sm font-bold text-slate-100 mt-2 leading-relaxed">
+                        {card.content.includes("N/A") ? card.content.replace(/N\/A/g, "---") : card.content}
+                      </p>
+                      {card.arabic_title && <p className="text-xl arabic-font text-emerald-400/70 mt-2">{card.arabic_title}</p>}
                     </div>
                   </div>
                 ))}
@@ -875,98 +1011,104 @@ export default function DashboardPage() {
           )}
         </section>
 
-        <section className="rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
-          <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">
-            Sections
+        <section className="rounded-3xl glass-panel p-8 md:p-10">
+          <p className="mb-6 text-sm font-black uppercase tracking-[0.3em] text-slate-400">
+            Explore Ishrakaat Sections
           </p>
-          <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <Link
               href="/"
-              className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2"
+              className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6 hover:bg-emerald-500/10 hover:border-emerald-500/50 transition-all group active-scale"
             >
-              <p className="flex items-center gap-1.5 font-semibold text-emerald-100">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-[11px]">
-                  ش
+              <div className="flex items-center gap-4 mb-3">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/20 text-2xl group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                  🤲
                 </span>
-                Ishrakaat
-              </p>
-              <p className="mt-1 text-xs text-emerald-50/80">
-                Core donation campaigns and projects.
+                <p className="text-lg font-bold text-emerald-100">Ishrapay Core</p>
+              </div>
+              <p className="text-sm text-emerald-100/60 leading-relaxed">
+                Primary donation campaigns, emergency relief, and community projects.
               </p>
             </Link>
+            
             <Link
               href="/zakah"
-              className="rounded-xl border border-sky-500/35 bg-sky-500/10 px-3 py-2"
+              className="rounded-2xl border border-sky-500/30 bg-sky-500/5 p-6 hover:bg-sky-500/10 hover:border-sky-500/50 transition-all group active-scale"
             >
-              <p className="flex items-center gap-1.5 font-semibold text-sky-100">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-500/20 text-[11px]">
+              <div className="flex items-center gap-4 mb-3">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500/20 text-2xl group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(14,165,233,0.2)]">
                   %
                 </span>
-                Zakah &amp; Sadaqah
-              </p>
-              <p className="mt-1 text-xs text-sky-50/80">
-                Obligatory and voluntary charity.
+                <p className="text-lg font-bold text-sky-100">Zakah & Sadaqah</p>
+              </div>
+              <p className="text-sm text-sky-100/60 leading-relaxed">
+                Calculate and pay your obligatory Zakah or give voluntary Sadaqah securely.
               </p>
             </Link>
+
             <Link
               href="/sections/waqf"
-              className="rounded-xl border border-violet-500/35 bg-violet-500/10 px-3 py-2"
+              className="rounded-2xl border border-violet-500/30 bg-violet-500/5 p-6 hover:bg-violet-500/10 hover:border-violet-500/50 transition-all group active-scale"
             >
-              <p className="flex items-center gap-1.5 font-semibold text-violet-100">
-                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-violet-500/20 text-[9px]">
-                  ⭕
+              <div className="flex items-center gap-4 mb-3">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-500/20 text-2xl group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(139,92,246,0.2)]">
+                  🏛️
                 </span>
-                Waqf
-              </p>
-              <p className="mt-1 text-[10px] text-violet-50/80">
-                Endowments for ongoing reward.
+                <p className="text-lg font-bold text-violet-100">Waqf Trust</p>
+              </div>
+              <p className="text-sm text-violet-100/60 leading-relaxed">
+                Permanent endowments that continue to provide reward (Sadaqah Jariyah).
               </p>
             </Link>
+
             <Link
               href="/sections/tabararaat"
-              className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2"
+              className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6 hover:bg-amber-500/10 hover:border-amber-500/50 transition-all group active-scale"
             >
-              <p className="flex items-center gap-1.5 font-semibold text-amber-100">
-                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500/20 text-[9px]">
+              <div className="flex items-center gap-4 mb-3">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/20 text-2xl group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(245,158,11,0.2)]">
                   ✨
                 </span>
-                Tabararaat
-              </p>
-              <p className="mt-1 text-[10px] text-amber-50/80">
-                Voluntary contributions and gifts.
+                <p className="text-lg font-bold text-amber-100">Tabararaat</p>
+              </div>
+              <p className="text-sm text-amber-100/60 leading-relaxed">
+                Voluntary gifts and expressions of kindness for various causes.
               </p>
             </Link>
+
             <Link
               href="/sections/aqsah"
-              className="rounded-xl border border-rose-500/35 bg-rose-500/10 px-3 py-2"
+              className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-6 hover:bg-rose-500/10 hover:border-rose-500/50 transition-all group active-scale"
             >
-              <p className="flex items-center gap-1.5 font-semibold text-rose-100">
-                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-rose-500/20 text-[9px]">
-                  ★
+              <div className="flex items-center gap-4 mb-3">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-500/20 text-2xl group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(244,63,94,0.2)]">
+                  🚨
                 </span>
-                Aqsah
-              </p>
-              <p className="mt-1 text-[10px] text-rose-50/80">
-                Special causes and emergencies.
+                <p className="text-lg font-bold text-rose-100">Aqsah Emerging</p>
+              </div>
+              <p className="text-sm text-rose-100/60 leading-relaxed">
+                Critical support for emerging crises and high-priority relief efforts.
               </p>
             </Link>
+
             <Link
               href="/sections/welfare"
-              className="rounded-xl border border-lime-500/35 bg-lime-500/10 px-3 py-2"
+              className="rounded-2xl border border-lime-500/30 bg-lime-500/5 p-6 hover:bg-lime-500/10 hover:border-lime-500/50 transition-all group active-scale"
             >
-              <p className="flex items-center gap-1.5 font-semibold text-lime-100">
-                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-lime-500/20 text-[9px]">
-                  ♥
+              <div className="flex items-center gap-4 mb-3">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-lime-500/20 text-2xl group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(132,204,22,0.2)]">
+                  ❤️
                 </span>
-                Welfare
-              </p>
-              <p className="mt-1 text-[10px] text-lime-50/80">
-                Support for families and communities.
+                <p className="text-lg font-bold text-lime-100">Welfare Support</p>
+              </div>
+              <p className="text-sm text-lime-100/60 leading-relaxed">
+                Direct family assistance, food security, and basic human needs.
               </p>
             </Link>
           </div>
         </section>
-      </main>
-    </div>
+      </div>
+      </div>
+    </React.Fragment>
   );
 }
