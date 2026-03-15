@@ -6,7 +6,9 @@ from .views import (
     IslamicDashboardCardsView,
     get_nisab_data,
     zakah_quick_pay,
-    zakah_references
+    zakah_references_func,
+    calculate_livestock_zakat,
+    calculate_crop_zakat
 )
 from .test_views import test_zakah_references
 
@@ -22,8 +24,10 @@ urlpatterns = [
     path("", direct_test, name="direct-test"),
     path("nisab/", NisabView.as_view(), name="nisab"),
     path("nisab/data/", get_nisab_data, name="nisab-data"),
-    path("zakah/pay/", zakah_quick_pay, name="zakah-quick-pay"),
-    path("zakah/references/", zakah_references, name="zakah-references"),
-    path("zakah/references/test/", test_zakah_references, name="test-zakah-references"),
+    path("pay/", zakah_quick_pay, name="zakah-quick-pay"),
+    path("references/", ZakahReferenceView.as_view(), name="zakah-references"),
+    path("references/test/", test_zakah_references, name="test-zakah-references"),
     path("cards/", IslamicDashboardCardsView.as_view(), name="islamic-cards"),
+    path("calculate/livestock/", calculate_livestock_zakat, name="livestock-zakat"),
+    path("calculate/crop/", calculate_crop_zakat, name="crop-zakat"),
 ]

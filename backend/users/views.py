@@ -32,6 +32,7 @@ class ProfileView(generics.RetrieveUpdateAPIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_object(self):
+        print(">>> Entering ProfileView.get_object")
         return self.request.user
 
 
@@ -86,30 +87,26 @@ class AdminPromoteUserView(APIView):
         if not (is_admin_level or admin.is_staff or admin.is_superuser):
             raise PermissionDenied("You are not an admin user.")
         level = request.data.get("level")
-        valid_levels = ["WARD", "LOCAL_GOVT", "STATE", "NATIONAL"]
+        valid_levels = ["NONE", "WARD", "LOCAL_GOVT", "STATE", "NATIONAL"]
         if level not in valid_levels:
             return Response(
                 {"error": "Invalid admin level."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if admin.admin_level not in ["STATE", "NATIONAL", "LOCAL_GOVT"]:
+        if admin.admin_level not in ["STATE", "NATIONAL"]:
             return Response(
-                {"error": "You do not have permission to promote admins."},
+                {"error": "Only National or State admins can manage admin roles."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if admin.admin_level == "LOCAL_GOVT" and level != "WARD":
-            return Response(
-                {"error": "Local government admins can only promote ward admins."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        if admin.admin_level == "STATE" and level == "NATIONAL":
-            return Response(
-                {"error": "Only national admins can promote national admins."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        # STATE admins can't promote to NATIONAL or promote other STATE admins
+        if admin.admin_level == "STATE":
+            if level == "NATIONAL" or level == "STATE":
+                return Response(
+                    {"error": "State admins cannot assign National or State roles."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         try:
             user = User.objects.get(pk=pk)
@@ -117,6 +114,19 @@ class AdminPromoteUserView(APIView):
             return Response(
                 {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
             )
+
+        # STATE admins can only manage users in their own state
+        if admin.admin_level == "STATE" and user.state != admin.state:
+            return Response(
+                {"error": "State admins can only manage users within their state."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if level == "NONE":
+            user.admin_level = "NONE"
+            user.is_staff = False
+            user.save()
+            return Response({"status": "degraded", "admin_level": "NONE"})
 
         filters = {"admin_level": level}
 

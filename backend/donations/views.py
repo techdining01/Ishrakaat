@@ -54,9 +54,18 @@ class DonationTypeListView(generics.ListCreateAPIView):
         if not self.request.user.is_staff:
              raise permissions.PermissionDenied("Only admins can create campaigns.")
         
-        # If we are in the Waqf section, set category to PROJECT automatically
-        # or keep the default logic. For now, we just ensure staff can create.
-        serializer.save()
+        instance = serializer.save()
+        
+        # Trigger push notification to all users
+        try:
+            from .utils import send_push_to_all
+            send_push_to_all(
+                title="New Campaign!",
+                message=f"A new campaign '{instance.name}' has been created. Join us in making an impact!",
+                url=f"/sections/ishrakaat"
+            )
+        except Exception as e:
+            print(f"Failed to send push: {e}")
 
 
 class DonationTypeDetailView(generics.DestroyAPIView):
@@ -110,6 +119,7 @@ class UserDonationSettingsView(generics.RetrieveUpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
+        print(">>> Entering UserDonationSettingsView.get_object")
         obj, created = UserDonationSettings.objects.get_or_create(
             user=self.request.user
         )

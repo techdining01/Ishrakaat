@@ -21,6 +21,8 @@ class JWTRefreshMiddleware(MiddlewareMixin):
         if not request.path.startswith('/api/') or '/auth/' in request.path:
             return self.get_response(request)
             
+        print(f">>> JWTRefreshMiddleware: checking path {request.path}")
+            
         # Get the token from Authorization header
         auth_header = request.META.get('HTTP_AUTHORIZATION', '')
         if not auth_header.startswith('Bearer '):

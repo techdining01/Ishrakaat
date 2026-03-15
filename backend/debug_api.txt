@@ -1,0 +1,56 @@
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100   517  100   517    0     0   2241      0 --:--:-- --:--:-- --:--:--  2247HTTP/1.1 200 OK
+Content-Type: application/json
+Vary: Accept, origin, Cookie
+Allow: GET, HEAD, OPTIONS
+X-Frame-Options: DENY
+Content-Length: 517
+X-Content-Type-Options: nosniff
+Referrer-Policy: same-origin
+Cross-Origin-Opener-Policy: same-origin
+Server: daphne
+
+{"items":[{"key":"dowry","title":"Minimum Dowry (Rub'u Dinar)","amount_ngn":235248.16,"source_url":"https://www.dailynisab.org/","last_updated":"2026-03-15T12:24:52.352362Z"},{"key":"hadd_theft","title":"Nisab for Theft","amount_ngn":235248.16,"source_url":"https://www.dailynisab.org/","last_updated":"2026-03-15T12:24:52.389942Z"},{"key":"murderer_fine","title":"Blood Money (Diyyah - 1000 Dinars)","amount_ngn":940992658.03,"source_url":"https://www.dailynisab.org/","last_updated":"2026-03-15T12:24:52.371441Z"}]}
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100   191  100   191    0     0    731      0 --:--:-- --:--:-- --:--:--   731HTTP/1.1 200 OK
+Content-Type: application/json
+Vary: Accept, origin, Cookie
+Allow: GET, HEAD, OPTIONS
+X-Frame-Options: DENY
+Content-Length: 191
+X-Content-Type-Options: nosniff
+Referrer-Policy: same-origin
+Cross-Origin-Opener-Policy: same-origin
+Server: daphne
+
+{"currency":"NGN","gold_price_usd_oz":5019.7,"silver_price_usd_oz":80.7,"usd_ngn_rate":1371.92,"nisab_gold":18819853.16,"nisab_silver":2117791.09,"last_updated":"2026-03-15T12:24:52.302690Z"}
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100  1187  100  1187    0     0   5356      0 --:--:-- --:--:-- --:--:--  5346100  1187  100  1187    0     0   5355      0 --:--:-- --:--:-- --:--:--  5346HTTP/1.1 200 OK
+Content-Type: application/json
+Vary: Accept, origin, Cookie
+Allow: GET, HEAD, OPTIONS
+X-Frame-Options: DENY
+Content-Length: 1187
+X-Content-Type-Options: nosniff
+Referrer-Policy: same-origin
+Cross-Origin-Opener-Policy: same-origin
+Server: daphne
+
+{"cards":[{"id":1,"title":"Islamic Calendar","arabic_title":"التقويم الهجري","content":"World: N/A\nNigeria: N/A","arabic_content":"N/A","icon_name":"calendar","order":1},{"id":2,"title":"The Parents","arabic_title":"الأبوان","content":"Essential heirs: أب (Father), أم (Mother)","arabic_content":"الأبوان","icon_name":"users","order":2},{"id":3,"title":"The Descendants","arabic_title":"الفروع","content":"Essential heirs: ابن (Son), بنت (Daughter)","arabic_content":"الفروع","icon_name":"arrow-down","order":3},{"id":4,"title":"The Spouses","arabic_title":"الزوجان","content":"Essential heirs: زوج (Husband), زوجة (Wife)","arabic_content":"الزوجان","icon_name":"heart","order":4},{"id":5,"title":"The Grandparents","arabic_title":"الأجداد","content":"Essential heirs: جد (Grandfather), جدة (Grandmother)","arabic_content":"الأجداد","icon_name":"award","order":5},{"id":6,"title":"Fara'id Principles","arabic_title":"أصول الفرائض","content":"Islamic inheritance is fixed by Allah in the Qur'an (Surah An-Nisa).","arabic_content":"أصول الفرائض","icon_name":"book","order":6}]}
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100   256  100   256    0     0   1170      0 --:--:-- --:--:-- --:--:--  1174HTTP/1.1 200 OK
+Content-Type: application/json
+Vary: Accept, origin, Cookie
+Allow: OPTIONS, GET
+X-Frame-Options: DENY
+Content-Length: 256
+X-Content-Type-Options: nosniff
+Referrer-Policy: same-origin
+Cross-Origin-Opener-Policy: same-origin
+Server: daphne
+
+{"gold_price_per_gram":221410.04,"silver_price_per_gram":3559.31,"gold_nisab":18819853.400000002,"silver_nisab":2117789.45,"gold_nisab_grams":85,"silver_nisab_grams":595,"last_updated":"2026-03-15T12:24:52.328424Z","source":"Gold-API","zakat_al_fitr":2000}

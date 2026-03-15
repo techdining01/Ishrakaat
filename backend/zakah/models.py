@@ -46,6 +46,9 @@ class NisabData(models.Model):
     currency = models.CharField(max_length=3, default='NGN')
     gold_price_per_gram = models.DecimalField(max_digits=10, decimal_places=2)
     silver_price_per_gram = models.DecimalField(max_digits=10, decimal_places=2)
+    gold_nisab_ngn = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    silver_nisab_ngn = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    usd_ngn_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     source = models.CharField(max_length=255, default='Unknown')
     last_updated = models.DateTimeField(default=timezone.now)
 
