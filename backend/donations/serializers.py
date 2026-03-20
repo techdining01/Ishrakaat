@@ -105,3 +105,21 @@ class PushSubscriptionSerializer(serializers.ModelSerializer):
         model = PushSubscription
         fields = ["id", "endpoint", "p256dh", "auth", "created_at"]
         read_only_fields = ["id", "created_at"]
+
+
+class AdminWaqfInterestSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username", read_only=True, allow_null=True)
+    user_email = serializers.CharField(source="user.email", read_only=True, allow_null=True)
+
+    class Meta:
+        model = WaqfInterest
+        fields = "__all__"
+
+
+class AdminWelfareDonationSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username", read_only=True)
+    user_email = serializers.CharField(source="user.email", read_only=True)
+
+    class Meta:
+        model = WelfareFamilyNeedDonation
+        fields = "__all__"

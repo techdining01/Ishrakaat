@@ -1,0 +1,57 @@
+4:import { useEffect, useState } from "react";
+5:import { apiGet } from "@/lib/api";
+6:import { IconHands } from "./shell/icon-hands";
+7:import { Marquee } from "@/components/ui/marquee";
+17:  },
+25:  },
+33:  },
+41:  },
+49:  },
+57:  },
+67:}
+75:  } | null>(null);
+89:      } catch (error) {
+91:      } finally {
+93:      }
+94:    }
+96:  }, []);
+105:      } catch {
+106:      }
+107:    };
+109:  }, []);
+125:          ? `${name}, your monthly donation is due today.`
+126:          : `${name}, due in ${diffDays} day${diffDays === 1 ? "" : "s"}.`) +
+127:        ` Amount: ₦${amount.toLocaleString()}. ${verseAr}`;
+136:                data: { url: "/dashboard" },
+137:              });
+138:            }).catch(() => { });
+139:          }
+140:        }).catch(() => { });
+141:      }
+142:    }
+143:  }, [profile]);
+148:      {/* Dynamic Header Section */}
+154:              Salam, {profile?.first_name || profile?.username || "Guest"}
+166:              ₦{profile ? Number(profile.money_box_balance || 0).toLocaleString() : "0.00"}
+180:      {/* Explore Grid */}
+186:              key={sec.key}
+187:              href={sec.href}
+188:              className={`relative overflow-hidden rounded-2xl border ${sec.accent} p-4 md:p-6 backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] active-scale group`}
+192:                  {sec.icon}
+195:                  <h3 className="font-bold text-white text-xs md:text-base">{sec.label}</h3>
+196:                  <p className="text-[10px] text-white/50 hidden md:block mt-0.5">{sec.subtitle}</p>
+200:          ))}
+205:        {/* Realtime Nisab Tickers */}
+222:                  <span className="text-xs text-emerald-200/70 font-medium">Gold ({nisabData.gold_nisab_grams || 85}g)</span>
+223:                  <span className="text-sm font-bold text-emerald-400">₦{nisabData.gold_nisab?.toLocaleString()}</span>
+226:                  <span className="text-xs text-sky-200/70 font-medium">Silver ({nisabData.silver_nisab_grams || 595}g)</span>
+227:                  <span className="text-sm font-bold text-sky-400">₦{nisabData.silver_nisab?.toLocaleString()}</span>
+231:                  <span className="text-sm font-bold text-amber-400">₦{nisabData.zakat_al_fitr?.toLocaleString()}</span>
+239:            )}
+243:        {/* Notices & Active Campaigns */}
+254:                  key={campaign.id}
+255:                  href={`/sections/${campaign.category.toLowerCase()}`}
+259:                    <span className="text-xs font-bold text-slate-100 truncate group-hover:text-emerald-300 transition-colors">{campaign.name}</span>
+260:                    <span className="text-[10px] text-slate-400 truncate">{campaign.description}</span>
+272:            )}
+279:}

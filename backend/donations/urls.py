@@ -10,6 +10,16 @@ from .views import (
     WaqfInterestCreateView,
     push_subscribe,
     push_unsubscribe,
+    AdminWaqfInterestListView,
+    AdminWaqfInterestUpdateView,
+    AdminWelfareDonationListView,
+    AdminWelfareDonationUpdateView,
+)
+from .exports import (
+    export_waqf_csv,
+    export_waqf_pdf,
+    export_welfare_csv,
+    export_welfare_pdf,
 )
 from .api import inflow_outflow_stats, inflow_outflow_csv
 
@@ -43,5 +53,18 @@ urlpatterns = [
     ),
     path("push/subscribe/", push_subscribe, name="push-subscribe"),
     path("push/unsubscribe/", push_unsubscribe, name="push-unsubscribe"),
+    
+    # Admin Tracking
+    path("admin/waqf-interests/", AdminWaqfInterestListView.as_view(), name="admin-waqf-list"),
+    path("admin/waqf-interests/<int:pk>/", AdminWaqfInterestUpdateView.as_view(), name="admin-waqf-update"),
+    path("admin/welfare-donations/", AdminWelfareDonationListView.as_view(), name="admin-welfare-list"),
+    path("admin/welfare-donations/<int:pk>/", AdminWelfareDonationUpdateView.as_view(), name="admin-welfare-update"),
+    
+    # Exports
+    path("admin/waqf-interests/export/csv/", export_waqf_csv, name="export-waqf-csv"),
+    path("admin/waqf-interests/export/pdf/", export_waqf_pdf, name="export-waqf-pdf"),
+    path("admin/welfare-donations/export/csv/", export_welfare_csv, name="export-welfare-csv"),
+    path("admin/welfare-donations/export/pdf/", export_welfare_pdf, name="export-welfare-pdf"),
+    
     path("", include(router.urls)),
 ]

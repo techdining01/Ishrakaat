@@ -18,8 +18,13 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
+
+def home_view(request):
+    return JsonResponse({"message": "Ishrakaat API is running", "status": "ok"})
 
 urlpatterns = [
+    path('', home_view, name='home'),
     path('admin/', admin.site.urls),
     path('auth/', include('users.urls')),
     path('donations/', include('donations.urls')),

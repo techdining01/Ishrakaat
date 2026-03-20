@@ -22,6 +22,8 @@ from .serializers import (
     WelfareFamilyNeedDonationSerializer,
     WaqfInterestSerializer,
     PushSubscriptionSerializer,
+    AdminWaqfInterestSerializer,
+    AdminWelfareDonationSerializer,
 )
 from payments.models import SavedCard
 from payments.paystack import Paystack
@@ -97,6 +99,7 @@ def push_subscribe(request):
             "auth": auth_key,
         },
     )
+    print(f">>> PUSH SUBSCRIPTION {'CREATED' if created else 'UPDATED'}: {endpoint[:30]}... for user {request.user}")
     return Response(PushSubscriptionSerializer(sub).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 
@@ -321,3 +324,29 @@ def zakah_quick_pay(request):
         {"detail": "Invalid payment method."},
         status=status.HTTP_400_BAD_REQUEST,
     )
+
+
+# Admin Tracking Views
+
+class AdminWaqfInterestListView(generics.ListAPIView):
+    queryset = WaqfInterest.objects.all()
+    serializer_class = AdminWaqfInterestSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
+class AdminWaqfInterestUpdateView(generics.UpdateAPIView):
+    queryset = WaqfInterest.objects.all()
+    serializer_class = AdminWaqfInterestSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
+class AdminWelfareDonationListView(generics.ListAPIView):
+    queryset = WelfareFamilyNeedDonation.objects.all()
+    serializer_class = AdminWelfareDonationSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
+class AdminWelfareDonationUpdateView(generics.UpdateAPIView):
+    queryset = WelfareFamilyNeedDonation.objects.all()
+    serializer_class = AdminWelfareDonationSerializer
+    permission_classes = [permissions.IsAdminUser]

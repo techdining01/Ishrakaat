@@ -46,6 +46,15 @@ interface IslamicCard {
   order: number;
 }
 
+function ClientOnly({ children }: { children: React.ReactNode }) {
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+  if (!hasMounted) return null;
+  return <>{children}</>;
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<FastStats | null>(null);
   const [error, setError] = useState("");
@@ -66,6 +75,7 @@ export default function DashboardPage() {
   const [selectedHeirs, setSelectedHeirs] = useState<Record<string, number>>({});
   const [calendarMode, setCalendarMode] = useState<'hijri'>('hijri');
   const [viewDate, setViewDate] = useState(new Date());
+  const [calendarMeta, setCalendarMeta] = useState<ReturnType<typeof getCalendarMetadata> | null>(null);
   const [creatingCard, setCreatingCard] = useState(false);
   const [savedCards, setSavedCards] = useState<any[]>([]);
   const [loadingCards, setLoadingCards] = useState(false);
@@ -75,12 +85,16 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setMounted(true);
+    setCalendarMeta(getCalendarMetadata());
   }, []);
 
   // Load saved cards
   useEffect(() => {
-    loadSavedCards();
-    checkAndSaveCardFromDeposit();
+    const token = typeof window !== "undefined" ? localStorage.getItem("access") : null;
+    if (token) {
+      loadSavedCards();
+      checkAndSaveCardFromDeposit();
+    }
   }, []);
 
   async function checkAndSaveCardFromDeposit() {
@@ -108,6 +122,8 @@ export default function DashboardPage() {
   }
 
   async function loadSavedCards() {
+    const token = typeof window !== "undefined" ? localStorage.getItem("access") : null;
+    if (!token) return;
     setLoadingCards(true);
     try {
       const response = await apiGet("/payments/cards/", true);
@@ -130,6 +146,15 @@ export default function DashboardPage() {
   }
 
   const getCalendarMetadata = () => {
+    if (typeof window === "undefined") {
+      return {
+        monthName: "",
+        year: "",
+        firstDayInfo: "",
+        startsOn: "",
+        day1Year: new Date().getFullYear(),
+      };
+    }
     const hijriFormatter = new Intl.DateTimeFormat('en-US-u-ca-islamic-umalqura', { day: 'numeric', month: 'numeric', year: 'numeric' });
     const parts = hijriFormatter.formatToParts(viewDate);
     const hijriDay = parseInt(parts.find(p => p.type === 'day')?.value || "1");
@@ -146,6 +171,9 @@ export default function DashboardPage() {
   };
 
   const getCalendarDays = () => {
+    if (typeof window === "undefined" || !mounted) {
+      return [];
+    }
     const today = new Date();
 
     // We get the viewDate which represents a date inside the target Hijri month.
@@ -199,6 +227,20 @@ export default function DashboardPage() {
       next.setDate(next.getDate() - (hijriDay + 15));
     }
     setViewDate(next);
+    setCalendarMeta(getCalendarMetadata.call({ viewDate: next } as never) ?? (() => {
+      const hijriF = new Intl.DateTimeFormat('en-US-u-ca-islamic-umalqura', { day: 'numeric', month: 'numeric', year: 'numeric' });
+      const parts2 = hijriF.formatToParts(next);
+      const hijriDay2 = parseInt(parts2.find(p => p.type === 'day')?.value || "1");
+      const day1Date2 = new Date(next);
+      day1Date2.setDate(day1Date2.getDate() - (hijriDay2 - 1));
+      return {
+        monthName: new Intl.DateTimeFormat('en-US-u-ca-islamic-umalqura', { month: 'long' }).format(next),
+        year: new Intl.DateTimeFormat('en-US-u-ca-islamic-umalqura', { year: 'numeric' }).format(next) + " AH",
+        firstDayInfo: new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(day1Date2),
+        startsOn: new Intl.DateTimeFormat('en-GB', { weekday: 'long' }).format(day1Date2),
+        day1Year: day1Date2.getFullYear(),
+      };
+    })());
   };
 
   // Expanded Islamic Inheritance Heirs and Rules
@@ -360,6 +402,9 @@ export default function DashboardPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        const token = typeof window !== "undefined" ? localStorage.getItem("access") : null;
+        if (!token) return;
+        
         const [me, donationSettings] = await Promise.all([
           apiGet("/auth/me/", true),
           apiGet("/donations/settings/", true),
@@ -402,7 +447,14 @@ export default function DashboardPage() {
   
   if (!mounted) return null;
 
-  const { monthName, year, firstDayInfo, startsOn, day1Year } = getCalendarMetadata();
+  // Ensure these are only calculated on the client after mounting to avoid hydration mismatch
+  const { monthName, year, firstDayInfo, startsOn, day1Year } = calendarMeta || {
+    monthName: "",
+    year: "",
+    firstDayInfo: "",
+    startsOn: "",
+    day1Year: new Date().getFullYear(),
+  };
 
   return (
     <React.Fragment>
@@ -768,12 +820,14 @@ export default function DashboardPage() {
                   </button>
 
                   <div className="text-center space-y-1">
-                    <h3 className="text-3xl md:text-5xl font-black text-emerald-400 leading-none tracking-tight">
-                      {monthName}
-                    </h3>
-                    <p className="text-sm md:text-base font-bold text-slate-400 uppercase tracking-[0.4em]">
-                      {year}
-                    </p>
+                    <ClientOnly>
+                      <h3 className="text-3xl md:text-5xl font-black text-emerald-400 leading-none tracking-tight">
+                        {monthName}
+                      </h3>
+                      <p className="text-sm md:text-base font-bold text-slate-400 uppercase tracking-[0.4em]">
+                        {year}
+                      </p>
+                    </ClientOnly>
                   </div>
 
                   <button
@@ -786,9 +840,11 @@ export default function DashboardPage() {
 
                 <div className="p-5 md:p-8 space-y-6">
                   <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-800/50 pb-4">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                      Starts on: <span className="text-emerald-400">{startsOn}, {firstDayInfo}, {day1Year}</span>
-                    </p>
+                    <ClientOnly>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                        Starts on: <span className="text-emerald-400">{startsOn}, {firstDayInfo}, {day1Year}</span>
+                      </p>
+                    </ClientOnly>
                   </div>
 
                   <div className="overflow-hidden">
@@ -800,35 +856,37 @@ export default function DashboardPage() {
                       ))}
                     </div>
                     <div className="grid grid-cols-7 gap-2 md:gap-3">
-                      {getCalendarDays().map((d, i) => (
-                        <div
-                          key={i}
-                          className={`aspect-square flex flex-col items-center justify-center rounded-2xl p-1 md:p-2 transition-all duration-300 relative border border-transparent ${!d ? 'bg-transparent' :
-                            d.isToday
-                              ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[inset_0_0_20px_rgba(16,185,129,0.1)] scale-[1.02] z-10'
-                              : 'bg-slate-900/50 hover:bg-slate-800 hover:border-slate-700/50 hover:scale-[1.02]'
-                            }`}
-                        >
-                          {d && (
-                            <>
-                              <div className="flex-1 flex items-end justify-center pb-0.5 md:pb-1">
-                                <span className={`text-xl md:text-3xl font-black ${d.isToday ? 'text-emerald-400' : 'text-slate-200'}`}>
-                                  {d.main}
-                                </span>
-                              </div>
-                              <div className="flex-1 flex items-start justify-center pt-0.5 md:pt-1 w-full relative">
-                                {!d.isToday && <div className="absolute top-0 w-8 h-px bg-slate-800/60 rounded-full"></div>}
-                                <span className={`text-[9px] md:text-[11px] font-bold mt-1 ${d.isToday ? 'text-emerald-300/80' : 'text-slate-500'}`}>
-                                  {d.sub} <span className="hidden md:inline">{d.subMonth}</span>
-                                </span>
-                              </div>
-                              {d.isToday && (
-                                <div className="absolute top-2 right-2 md:top-3 md:right-3 w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      ))}
+                      <ClientOnly>
+                        {getCalendarDays().map((d, i) => (
+                          <div
+                            key={i}
+                            className={`aspect-square flex flex-col items-center justify-center rounded-2xl p-1 md:p-2 transition-all duration-300 relative border border-transparent ${!d ? 'bg-transparent' :
+                              d.isToday
+                                ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[inset_0_0_20px_rgba(16,185,129,0.1)] scale-[1.02] z-10'
+                                : 'bg-slate-900/50 hover:bg-slate-800 hover:border-slate-700/50 hover:scale-[1.02]'
+                              }`}
+                          >
+                            {d && (
+                              <>
+                                <div className="flex-1 flex items-end justify-center pb-0.5 md:pb-1">
+                                  <span className={`text-xl md:text-3xl font-black ${d.isToday ? 'text-emerald-400' : 'text-slate-200'}`}>
+                                    {d.main}
+                                  </span>
+                                </div>
+                                <div className="flex-1 flex items-start justify-center pt-0.5 md:pt-1 w-full relative text-center">
+                                  {!d.isToday && <div className="absolute top-0 w-8 h-px bg-slate-800/60 rounded-full left-1/2 -translate-x-1/2"></div>}
+                                  <span className={`text-[9px] md:text-[11px] font-bold mt-1 ${d.isToday ? 'text-emerald-300/80' : 'text-slate-500'}`}>
+                                    {d.sub} <span className="hidden md:inline">{d.subMonth}</span>
+                                  </span>
+                                </div>
+                                {d.isToday && (
+                                  <div className="absolute top-2 right-2 md:top-3 md:right-3 w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </ClientOnly>
                     </div>
                   </div>
                 </div>

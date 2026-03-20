@@ -75,13 +75,22 @@ class WelfareFamilyNeedDonation(models.Model):
     )
     purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
+    
+    STATUS_CHOICES = (
+        ("PENDING", "Pending"),
+        ("DISBURSED", "Disbursed"),
+        ("COMPLETED", "Completed"),
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING")
+    admin_notes = models.TextField(blank=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.user.username} - {self.purpose} - {self.amount}"
+        return f"{self.user.username} - {self.purpose} - {self.amount} ({self.status})"
 
 
 class WaqfInterest(models.Model):
@@ -118,6 +127,14 @@ class WaqfInterest(models.Model):
     
     preferred_date = models.DateField(help_text="Target date for project or handover")
     additional_notes = models.TextField(blank=True)
+    
+    STATUS_CHOICES = (
+        ("PENDING", "Pending"),
+        ("FOLLOWED_UP", "Followed Up"),
+        ("COMPLETED", "Completed"),
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING")
+    admin_notes = models.TextField(blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
 

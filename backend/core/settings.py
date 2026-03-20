@@ -55,10 +55,11 @@ PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY')
 
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    'core.debug_middleware.GlobalDebugMiddleware',
     'core.middleware.JWTRefreshMiddleware',  
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',

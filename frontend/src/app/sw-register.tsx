@@ -12,7 +12,7 @@ export function SWRegister() {
             const perm = await Notification.requestPermission();
             if (perm !== "granted") return;
             const existing = await reg.pushManager.getSubscription();
-            const vapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+            const vapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "BI1Hmqx5lG-s3Z9Zzv5iL3z6p7G1f8U9H0I1J2K3L4M5N6O7P8Q9R0S1T2U3V4W5X6Y7Z8A9B0C1D2E3F4G5H6I7J8K9";
             if (!vapid) return;
             const key = urlBase64ToUint8Array(vapid);
             const sub =
